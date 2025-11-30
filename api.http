@@ -1,0 +1,70 @@
+# BaseCard API Query Tests
+
+### Variables
+@baseUrl = http://localhost:3000
+@aliceAddress = 0x1234567890123456789012345678901234567890
+@bobAddress = 0x2345678901234567890123456789012345678901
+
+### ===========================================
+### USER API
+### ===========================================
+
+### Get or Create User for alice
+POST http://localhost:3000/v1/users
+Content-Type: application/json
+
+{
+  "walletAddress": "{{aliceAddress}}"
+}
+
+### Get or Create User for bob 
+POST http://localhost:3000/v1/users
+Content-Type: application/json
+
+{
+  "walletAddress": "{{bobAddress}}"
+}
+
+### Get All Users
+GET http://localhost:3000/v1/users
+
+
+### Update new user when bob is not 
+PATCH http://localhost:3000/v1/users/{{bobAddress}}
+Content-Type: application/json
+
+{
+    "isNewUser": false
+}
+
+### Update hasMintedCard for bob
+PATCH http://localhost:3000/v1/users/{{bobAddress}}
+Content-Type: application/json
+
+{
+    "hasMintedCard": false
+}
+
+### Increase User's totalPoints
+PATCH http://localhost:3000/v1/users/{{bobAddress}}/points
+Content-Type: application/json
+
+{
+    "points": 100
+}
+
+### Create Card
+POST http://localhost:3000/v1/cards
+Content-Type: application/json
+
+{
+  "nickname": "Bob",
+  "role": "Developer",
+  "bio": "Hello BaseCard",
+  "address": "{{bobAddress}}",
+  "profileImage": "https://example.com/image.png",
+  "imageURI": "ipfs://example-cid",
+  "socials": {
+    "twitter": "@bob_base"
+  }
+}
