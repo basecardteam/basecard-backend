@@ -6,7 +6,6 @@ import { DbModule } from './db/db.module';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
 import { CardsModule } from './cards/cards.module';
-import { MintModule } from './mint/mint.module';
 import { EarnModule } from './earn/earn.module';
 import { QuestsModule } from './quests/quests.module';
 import { CollectionsModule } from './collections/collections.module';
@@ -19,7 +18,6 @@ import { LoggingMiddleware } from './common/middleware/logging.middleware';
     CommonModule,
     UsersModule,
     CardsModule,
-    MintModule,
     EarnModule,
     QuestsModule,
     CollectionsModule,

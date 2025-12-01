@@ -8,7 +8,11 @@ import {
   Delete,
   Put,
   Logger,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes } from '@nestjs/swagger';
 import { CardsService } from './cards.service';
 import { CreateCardDto } from './dto/create-card.dto';
 import { UpdateCardDto } from './dto/update-card.dto';
@@ -20,9 +24,33 @@ export class CardsController {
   constructor(private readonly cardsService: CardsService) {}
 
   @Post()
-  async create(@Body() createCardDto: CreateCardDto) {
+  @UseInterceptors(FileInterceptor('profileImageFile'))
+  @ApiConsumes('multipart/form-data')
+  async create(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() createCardDto: CreateCardDto,
+  ) {
     this.logger.log(`Creating card for address: ${createCardDto.address}`);
-    return this.cardsService.create(createCardDto);
+
+    let imageURI = createCardDto.imageURI;
+    let profileImage = createCardDto.profileImage;
+
+    // If file is provided, process it via CardsService
+    if (file) {
+      this.logger.log('Processing profile image file...');
+      const mintResult = await this.cardsService.processMinting(
+        file,
+        createCardDto,
+      );
+      imageURI = mintResult.imageURI;
+      profileImage = mintResult.profileImage;
+    }
+
+    return this.cardsService.create({
+      ...createCardDto,
+      imageURI,
+      profileImage,
+    });
   }
 
   @Get()

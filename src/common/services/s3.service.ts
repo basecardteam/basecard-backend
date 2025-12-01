@@ -1,30 +1,64 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppConfigService } from '../configs/app-config.service';
 
 @Injectable()
 export class S3Service {
   private readonly logger = new Logger(S3Service.name);
-  private s3Client: S3Client;
-  private bucketName: string;
+  private supabase: SupabaseClient;
+  private readonly bucketName = 'basecard-assets';
+  private initializationPromise: Promise<void>;
 
   constructor(private configService: AppConfigService) {
-    const region = this.configService.awsRegion;
-    const accessKeyId = this.configService.awsAccessKeyId;
-    const secretAccessKey = this.configService.awsSecretAccessKey;
-    this.bucketName = this.configService.awsS3BucketName || '';
+    const supabaseUrl = this.configService.supabaseUrl;
+    const supabaseKey = this.configService.supabaseKey;
 
-    if (accessKeyId && secretAccessKey && this.bucketName) {
-      this.s3Client = new S3Client({
-        region,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
-      });
+    if (supabaseUrl && supabaseKey) {
+      this.logger.log('Using Supabase JS Client');
+      this.supabase = createClient(supabaseUrl, supabaseKey);
+      this.initializationPromise = this.ensureBucketExists();
     } else {
       this.logger.warn(
-        'AWS credentials or bucket name not set. S3 uploads will fail.',
+        'Supabase URL or Key not set. Storage operations will fail.',
+      );
+      this.initializationPromise = Promise.reject(
+        new Error('Supabase URL or Key not set'),
+      );
+    }
+  }
+
+  private async ensureBucketExists() {
+    try {
+      const { data: bucket, error } = await this.supabase.storage.getBucket(
+        this.bucketName,
+      );
+
+      if (error && error.message.includes('not found')) {
+        this.logger.log(`Bucket "${this.bucketName}" not found. Creating...`);
+        const { data, error: createError } =
+          await this.supabase.storage.createBucket(this.bucketName, {
+            public: true,
+            allowedMimeTypes: ['image/*'],
+            fileSizeLimit: '1MB',
+          });
+
+        if (createError) {
+          this.logger.error(
+            `Failed to create bucket "${this.bucketName}"`,
+            createError,
+          );
+        } else {
+          this.logger.log(`Bucket "${this.bucketName}" created successfully.`);
+        }
+      } else if (error) {
+        this.logger.error(`Error checking bucket "${this.bucketName}"`, error);
+      } else {
+        this.logger.log(`Bucket "${this.bucketName}" exists.`);
+      }
+    } catch (err) {
+      this.logger.error(
+        `Unexpected error checking bucket "${this.bucketName}"`,
+        err,
       );
     }
   }
@@ -35,29 +69,33 @@ export class S3Service {
     contentType: string,
   ): Promise<string> {
     try {
-      if (!this.s3Client) {
-        throw new Error('S3 client not initialized');
+      await this.initializationPromise;
+
+      if (!this.supabase) {
+        throw new Error('Supabase client not initialized');
       }
 
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      await this.s3Client.send(
-        new PutObjectCommand({
-          Bucket: this.bucketName,
-          Key: key,
-          Body: buffer,
-          ContentType: contentType,
-          ACL: 'public-read', // Adjust based on bucket policy
-        }),
-      );
+      const { data, error } = await this.supabase.storage
+        .from(this.bucketName)
+        .upload(key, buffer, {
+          contentType: contentType,
+          upsert: true,
+        });
 
-      // Construct public URL (assuming standard S3 URL format)
-      // For CloudFront or other setups, this might need adjustment
-      const region = this.configService.awsRegion;
-      return `https://${this.bucketName}.s3.${region}.amazonaws.com/${key}`;
+      if (error) {
+        throw error;
+      }
+
+      const { data: publicUrlData } = this.supabase.storage
+        .from(this.bucketName)
+        .getPublicUrl(key);
+
+      return publicUrlData.publicUrl;
     } catch (error) {
-      this.logger.error('S3 upload error', error);
+      this.logger.error('Supabase upload error', error);
       throw error;
     }
   }

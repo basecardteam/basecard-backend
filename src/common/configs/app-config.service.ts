@@ -1,9 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class AppConfigService {
+export class AppConfigService implements OnModuleInit {
+  private readonly logger = new Logger(AppConfigService.name);
+
   constructor(private configService: ConfigService) {}
+
+  onModuleInit() {
+    const requiredKeys = [
+      'DATABASE_URL',
+      'SUPABASE_URL',
+      'SUPABASE_KEY',
+      'PINATA_JWT',
+      'PINATA_GATEWAY',
+      'PINATA_GROUP',
+    ];
+
+    const missingKeys = requiredKeys.filter(
+      (key) => !this.configService.get(key),
+    );
+
+    if (missingKeys.length > 0) {
+      const message = `Missing required environment variables: ${missingKeys.join(', ')}`;
+      this.logger.error(message);
+      throw new Error(message);
+    }
+
+    this.logger.log('All required environment variables are present.');
+  }
 
   get databaseUrl(): string {
     return this.configService.get<string>('DATABASE_URL')!;
@@ -35,20 +60,12 @@ export class AppConfigService {
     return this.configService.get<string>('PINATA_GROUP');
   }
 
-  // AWS S3
-  get awsRegion(): string {
-    return this.configService.get<string>('AWS_REGION', 'us-east-1');
+  // Supabase API
+  get supabaseUrl(): string | undefined {
+    return this.configService.get<string>('SUPABASE_URL');
   }
 
-  get awsAccessKeyId(): string | undefined {
-    return this.configService.get<string>('AWS_ACCESS_KEY_ID');
-  }
-
-  get awsSecretAccessKey(): string | undefined {
-    return this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
-  }
-
-  get awsS3BucketName(): string | undefined {
-    return this.configService.get<string>('AWS_S3_BUCKET_NAME');
+  get supabaseKey(): string | undefined {
+    return this.configService.get<string>('SUPABASE_KEY');
   }
 }

@@ -24,7 +24,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:reset": "ts-node scripts/reset-db.ts",
-    "db:check": "ts-node scripts/check-db-connection.ts"
+    "db:check": "ts-node scripts/check-db-connection.ts",
+    "test:services": "ts-node scripts/test-services.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.940.0",
@@ -33,6 +34,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.3",
+    "@supabase/supabase-js": "^2.86.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "drizzle-orm": "^0.44.7",

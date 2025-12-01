@@ -53,7 +53,34 @@ Content-Type: application/json
     "points": 100
 }
 
-### Create Card
+### Create Card (Multipart)
+# Note: This request requires a file named 'profileImageFile'
+# You can use the VS Code REST Client 'input' variable or just manually select a file if supported,
+# or use a tool like Postman/Curl for this specific test.
+# Here is the structure:
+# POST http://localhost:3000/v1/cards
+# Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+#
+# ------WebKitFormBoundary7MA4YWxkTrZu0gW
+# Content-Disposition: form-data; name="nickname"
+#
+# Bob
+# ------WebKitFormBoundary7MA4YWxkTrZu0gW
+# Content-Disposition: form-data; name="role"
+#
+# Developer
+# ------WebKitFormBoundary7MA4YWxkTrZu0gW
+# Content-Disposition: form-data; name="address"
+#
+# {{bobAddress}}
+# ------WebKitFormBoundary7MA4YWxkTrZu0gW
+# Content-Disposition: form-data; name="profileImageFile"; filename="image.png"
+# Content-Type: image/png
+#
+# < ./path/to/image.png
+# ------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Create Card (JSON - Manual Image URI)
 POST http://localhost:3000/v1/cards
 Content-Type: application/json
 
