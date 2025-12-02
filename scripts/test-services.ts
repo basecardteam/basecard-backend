@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { S3Service } from '../src/common/services/s3.service';
 import { IpfsService } from '../src/common/services/ipfs.service';
-import { BaseCardService } from '../src/common/services/basecard.service';
+import { ImageService } from '../src/common/services/image.service';
 import * as dotenv from 'dotenv';
 import { CustomLogger } from '../src/common/logger/custom.logger';
 import * as fs from 'fs';
@@ -14,7 +14,7 @@ async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const s3Service = app.get(S3Service);
   const ipfsService = app.get(IpfsService);
-  const cardGenerator = app.get(BaseCardService);
+  const imageService = app.get(ImageService);
 
   // Dummy data for testing
   const dummyImageBase64 =
@@ -49,7 +49,7 @@ async function bootstrap() {
 
         if (process.env.IMAGE_SERVICE === 'true') {
           console.log('2️⃣  Testing Image Optimization (For S3)...');
-          const optimized = await cardGenerator.optimizeImage(fileBuffer);
+          const optimized = await imageService.optimizeImage(fileBuffer);
           console.log(
             '✅ Optimization Success. MimeType:',
             optimized.mimeType,
@@ -94,7 +94,7 @@ async function bootstrap() {
             skills: ['Test', 'Debug'],
           };
 
-          const nftPngBuffer = await cardGenerator.generateNftPng(
+          const nftPngBuffer = await imageService.generateNftPng(
             profileData,
             fileBuffer, // Pass original buffer
           );

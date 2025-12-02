@@ -21,8 +21,8 @@ export interface BaseCardOptions {
 }
 
 @Injectable()
-export class BaseCardService implements OnModuleInit {
-  private readonly logger = new Logger(BaseCardService.name);
+export class ImageService implements OnModuleInit {
+  private readonly logger = new Logger(ImageService.name);
   private baseCardBackgroundBase64: string;
   private fontRegularBase64: string;
   private fontBoldBase64: string;
@@ -158,7 +158,6 @@ export class BaseCardService implements OnModuleInit {
     mimeType: string;
   }> {
     const TARGET_SIZE = 512;
-    const RADIUS = 46;
     const finalMimeType = 'image/webp';
 
     // 1. Basic pipeline (resize/compress)
@@ -166,22 +165,10 @@ export class BaseCardService implements OnModuleInit {
       .resize({ width: TARGET_SIZE, height: TARGET_SIZE, fit: 'cover' })
       .webp({ quality: 80 });
 
-    // 2. Create rounding mask
-    const maskSvgRightRounded = `
-        <svg width="${TARGET_SIZE}" height="${TARGET_SIZE}" viewBox="0 0 ${TARGET_SIZE} ${TARGET_SIZE}">
-            <path fill="#000" d="M 0 0 L ${TARGET_SIZE - RADIUS} 0 A ${RADIUS} ${RADIUS} 0 0 1 ${TARGET_SIZE} ${RADIUS} L ${TARGET_SIZE} ${TARGET_SIZE - RADIUS} A ${RADIUS} ${RADIUS} 0 0 1 ${TARGET_SIZE - RADIUS} ${TARGET_SIZE} L 0 ${TARGET_SIZE} Z" />
-        </svg>
-    `;
-    const maskBuffer = Buffer.from(maskSvgRightRounded);
-
-    // 3. Apply mask
-    const svgBuffer = await baseSharpInstance
-      .clone()
-      .composite([{ input: maskBuffer, blend: 'dest-in' }])
-      .toBuffer();
+    const optimizedBuffer = await baseSharpInstance.toBuffer();
 
     const originalSize = imageBuffer.length;
-    const optimizedSize = svgBuffer.length;
+    const optimizedSize = optimizedBuffer.length;
     const reduction = ((originalSize - optimizedSize) / originalSize) * 100;
 
     const originalMB = (originalSize / (1024 * 1024)).toFixed(2);
@@ -191,10 +178,10 @@ export class BaseCardService implements OnModuleInit {
       `Image optimized: ${originalMB}MB -> ${optimizedMB}MB (${reduction.toFixed(2)}% saved)`,
     );
 
-    const svgBase64 = svgBuffer.toString('base64');
+    const base64 = optimizedBuffer.toString('base64');
 
     return {
-      base64: svgBase64,
+      base64: base64,
       mimeType: finalMimeType,
     };
   }

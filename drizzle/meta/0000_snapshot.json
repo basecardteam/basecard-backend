@@ -1,5 +1,5 @@
 {
-  "id": "f58ea9bd-477d-46f6-959b-e531b82df602",
+  "id": "7a769012-026b-4a56-bc83-a714bdaac4c8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -27,12 +27,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "image_uri": {
-          "name": "image_uri",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "nickname": {
           "name": "nickname",
           "type": "varchar(256)",
@@ -51,8 +45,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "profile_image": {
-          "name": "profile_image",
+        "image_uri": {
+          "name": "image_uri",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -60,18 +54,6 @@
         "socials": {
           "name": "socials",
           "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attributes": {
-          "name": "attributes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "skills": {
-          "name": "skills",
-          "type": "text[]",
           "primaryKey": false,
           "notNull": false
         },
@@ -138,7 +120,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "cards_user_id_unique": {
+          "name": "cards_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -543,6 +533,13 @@
           "primaryKey": false,
           "notNull": false,
           "default": false
+        },
+        "profile_image": {
+          "name": "profile_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
         },
         "created_at": {
           "name": "created_at",

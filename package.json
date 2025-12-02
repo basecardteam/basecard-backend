@@ -24,6 +24,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:reset": "ts-node scripts/reset-db.ts",
+    "reset:bucket": "ts-node scripts/reset-bucket.ts",
     "db:check": "ts-node scripts/check-db-connection.ts",
     "test:services": "ts-node scripts/test-services.ts"
   },

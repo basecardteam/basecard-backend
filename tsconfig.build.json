@@ -6,6 +6,8 @@
     "dist",
     "**/*spec.ts",
     "drizzle.config.ts",
-    "__nextjs__"
+    "__nextjs__",
+    "scripts",
+    "drizzle"
   ]
 }

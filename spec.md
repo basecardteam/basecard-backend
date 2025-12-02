@@ -55,6 +55,7 @@ Retrieves an existing user by wallet address or creates a new one if not found.
       "isNewUser": true,
       "totalPoints": 0,
       "hasMintedCard": false,
+      "profileImage": "https://s3-url...",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     },
@@ -79,6 +80,7 @@ Retrieves a list of all users.
         "isNewUser": true,
         "totalPoints": 0,
         "hasMintedCard": false,
+        "profileImage": "https://s3-url...",
         "createdAt": "2024-01-01T00:00:00.000Z",
         "updatedAt": "2024-01-01T00:00:00.000Z"
       },
@@ -88,6 +90,7 @@ Retrieves a list of all users.
         "isNewUser": true,
         "totalPoints": 0,
         "hasMintedCard": false,
+        "profileImage": "",
         "createdAt": "2024-01-01T00:00:00.000Z",
         "updatedAt": "2024-01-01T00:00:00.000Z"
       }
@@ -120,6 +123,7 @@ Updates the `isNewUser` status of a user.
       "isNewUser": true,
       "totalPoints": 0,
       "hasMintedCard": true,
+      "profileImage": "https://s3-url...",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     },
@@ -151,6 +155,7 @@ Updates the `hasMintedCard` status of a user.
       "isNewUser": true,
       "totalPoints": 0,
       "hasMintedCard": true,
+      "profileImage": "https://s3-url...",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     },
@@ -180,6 +185,7 @@ Increases the user's total points by the specified amount.
       "isNewUser": true,
       "totalPoints": 100,
       "hasMintedCard": true,
+      "profileImage": "https://s3-url...",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     },
@@ -210,20 +216,20 @@ generate the card data for minting ERC721 NFT in backend side and save it to the
   ```
 - **Response**:
   ```json
-    {
-      "success": true, // or false
-      "result": {
-        "card_data": {
-            "nickname": "User's Nickname",
-            "role": "Developer",
-            "bio": "Hello, World",
-            "imageUri": "ipfs://..."
-        },
-        "social_keys": ["twitter"],
-        "social_values" ["@jeonogseup"]
-        },
-      "error": null
-    }
+  {
+    "success": true, // or false
+    "result": {
+      "card_data": {
+        "nickname": "User's Nickname",
+        "role": "Developer",
+        "bio": "Hello, World",
+        "imageUri": "ipfs://..."
+      },
+      "social_keys": ["twitter"],
+      "social_values": ["@jeonogseup"]
+    },
+    "error": null
+  }
   ```
 
 ### Get All Cards
@@ -243,7 +249,6 @@ Retrieves a list of all minted cards.
         "role": "Developer",
         "bio": "Hello, World",
         "address": "0x123...",
-        "profileImage": "https://s3-url...",
         "socials": { "twitter": "@jeongseup" },
         "skills": ["React", "Solidity"],
         "tokenId": 1,

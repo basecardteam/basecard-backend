@@ -5,6 +5,7 @@ import {
   IsArray,
   IsObject,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCardDto {
@@ -25,18 +26,8 @@ export class CreateCardDto {
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  imageURI: string;
-
-  @ApiProperty()
-  @IsString()
   @IsOptional()
-  basename?: string;
-
-  @ApiProperty()
-  @IsArray()
-  @IsOptional()
-  skills?: string[];
+  imageUri?: string;
 
   @ApiProperty()
   @IsString()
@@ -51,5 +42,15 @@ export class CreateCardDto {
   @ApiProperty()
   @IsObject()
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return {};
+      }
+    }
+    return value;
+  })
   socials?: Record<string, string>;
 }

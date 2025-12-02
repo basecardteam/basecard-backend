@@ -39,6 +39,16 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  @Get('address/:address')
+  async findByAddress(@Param('address') address: string) {
+    this.logger.debug(`Finding user with address: ${address}`);
+    const user = await this.usersService.findByAddress(address);
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+    return { success: true, result: user };
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     if (id.startsWith('0x')) {

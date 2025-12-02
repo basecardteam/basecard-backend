@@ -24,6 +24,7 @@ export const users = pgTable('users', {
 
   isNewUser: boolean('is_new_user').default(true),
   hasMintedCard: boolean('has_minted_card').default(false),
+  profileImage: text('profile_image').default('').notNull(), // Supabase Storage URL
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -38,7 +39,8 @@ export const cards = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     userId: uuid('user_id')
       .references(() => users.id)
-      .notNull(),
+      .notNull()
+      .unique(),
 
     // Contract Metadata Mirroring
     tokenId: integer('token_id'),
@@ -51,9 +53,6 @@ export const cards = pgTable(
 
     // basecard social data
     socials: jsonb('socials'), // { "twitter": "@handle", ... }
-
-    // profile data
-    profileImage: text('profile_image'), // Supabase Storage URL
 
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),

@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1764484236210,
-      "tag": "0000_nice_santa_claus",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1764497308374,
-      "tag": "0001_nosy_reavers",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1764499147968,
-      "tag": "0002_large_fabian_cortez",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1764499485165,
-      "tag": "0003_furry_mauler",
+      "when": 1764664881833,
+      "tag": "0000_cold_goblin_queen",
       "breakpoints": true
     }
   ]

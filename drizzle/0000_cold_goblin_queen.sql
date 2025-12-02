@@ -5,16 +5,14 @@ CREATE TABLE "cards" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"token_id" integer,
-	"image_uri" text,
 	"nickname" varchar(256),
 	"role" text,
 	"bio" text,
-	"profile_image" text,
+	"image_uri" text,
 	"socials" jsonb,
-	"attributes" jsonb,
-	"skills" text[],
 	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "cards_user_id_unique" UNIQUE("user_id")
 );
 --> statement-breakpoint
 CREATE TABLE "collections" (
@@ -70,6 +68,7 @@ CREATE TABLE "users" (
 	"total_points" integer DEFAULT 0 NOT NULL,
 	"is_new_user" boolean DEFAULT true,
 	"has_minted_card" boolean DEFAULT false,
+	"profile_image" text DEFAULT '' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_wallet_address_unique" UNIQUE("wallet_address")

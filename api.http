@@ -1,7 +1,7 @@
 # BaseCard API Query Tests
 
 ### Variables
-@baseUrl = http://localhost:3000
+@baseUrl = http://localhost:4000
 @aliceAddress = 0x1234567890123456789012345678901234567890
 @bobAddress = 0x2345678901234567890123456789012345678901
 
@@ -10,7 +10,7 @@
 ### ===========================================
 
 ### Get or Create User for alice
-POST http://localhost:3000/v1/users
+POST {{baseUrl}}/v1/users
 Content-Type: application/json
 
 {
@@ -18,7 +18,7 @@ Content-Type: application/json
 }
 
 ### Get or Create User for bob 
-POST http://localhost:3000/v1/users
+POST {{baseUrl}}/v1/users
 Content-Type: application/json
 
 {
@@ -26,11 +26,11 @@ Content-Type: application/json
 }
 
 ### Get All Users
-GET http://localhost:3000/v1/users
+GET {{baseUrl}}/v1/users
 
 
 ### Update new user when bob is not 
-PATCH http://localhost:3000/v1/users/{{bobAddress}}
+PATCH {{baseUrl}}/v1/users/{{bobAddress}}
 Content-Type: application/json
 
 {
@@ -38,7 +38,7 @@ Content-Type: application/json
 }
 
 ### Update hasMintedCard for bob
-PATCH http://localhost:3000/v1/users/{{bobAddress}}
+PATCH {{baseUrl}}/v1/users/{{bobAddress}}
 Content-Type: application/json
 
 {
@@ -46,52 +46,49 @@ Content-Type: application/json
 }
 
 ### Increase User's totalPoints
-PATCH http://localhost:3000/v1/users/{{bobAddress}}/points
+PATCH {{baseUrl}}/v1/users/{{bobAddress}}/points
 Content-Type: application/json
 
 {
     "points": 100
 }
 
+### ===========================================
+### CARD API
+### ===========================================
+
+### Get All Cards
+GET {{baseUrl}}/v1/cards
+
 ### Create Card (Multipart)
-# Note: This request requires a file named 'profileImageFile'
-# You can use the VS Code REST Client 'input' variable or just manually select a file if supported,
-# or use a tool like Postman/Curl for this specific test.
-# Here is the structure:
-# POST http://localhost:3000/v1/cards
-# Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-#
-# ------WebKitFormBoundary7MA4YWxkTrZu0gW
-# Content-Disposition: form-data; name="nickname"
-#
-# Bob
-# ------WebKitFormBoundary7MA4YWxkTrZu0gW
-# Content-Disposition: form-data; name="role"
-#
-# Developer
-# ------WebKitFormBoundary7MA4YWxkTrZu0gW
-# Content-Disposition: form-data; name="address"
-#
-# {{bobAddress}}
-# ------WebKitFormBoundary7MA4YWxkTrZu0gW
-# Content-Disposition: form-data; name="profileImageFile"; filename="image.png"
-# Content-Type: image/png
-#
-# < ./path/to/image.png
-# ------WebKitFormBoundary7MA4YWxkTrZu0gW--
+# Note: This request requires the 'REST Client' extension in VS Code.
+# Ensure 'test/samples/profile1.png' exists or update the path.
+POST {{baseUrl}}/v1/cards
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
-### Create Card (JSON - Manual Image URI)
-POST http://localhost:3000/v1/cards
-Content-Type: application/json
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="nickname"
 
-{
-  "nickname": "Bob",
-  "role": "Developer",
-  "bio": "Hello BaseCard",
-  "address": "{{bobAddress}}",
-  "profileImage": "https://example.com/image.png",
-  "imageURI": "ipfs://example-cid",
-  "socials": {
-    "twitter": "@bob_base"
-  }
-}
+Bob
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="role"
+
+Developer
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="bio"
+
+Hello BaseCard!
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="address"
+
+{{bobAddress}}
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="socials"
+
+{"twitter":"@bob", "farcaster":"@bobcatser", "basename":"bob.base.eth"}
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="profileImageFile"; filename="profile1.png"
+Content-Type: image/png
+
+< ./test/samples/profile1.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
