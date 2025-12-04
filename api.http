@@ -129,3 +129,60 @@ Content-Type: application/json
 {
   "tokenId": 123
 }
+
+### ===========================================
+### EVENTS API
+### ===========================================
+
+
+### Receive Contract Event (Webhook/Test)
+POST {{baseUrl}}/v1/events
+Content-Type: application/json
+
+{
+  "transactionHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "blockNumber": 123456,
+  "blockHash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+  "logIndex": 0,
+  "eventName": "MintBaseCard",
+  "args": {
+    "user": "{{aliceAddress}}",
+    "tokenId": 1
+  }
+}
+
+### Get All Events
+GET {{baseUrl}}/v1/events
+
+### ===========================================
+### Quests
+### ===========================================
+
+### Create Quest
+POST {{baseUrl}}/v1/quests
+Content-Type: application/json
+
+{
+  "title": "New Quest",
+  "description": "Description of the new quest",
+  "rewardAmount": 100,
+  "actionType": "CUSTOM_ACTION"
+}
+
+### Get All Quests
+GET {{baseUrl}}/v1/quests
+
+### Get Quest by ID
+@questId = {{baseUrl}}/v1/quests
+GET {{baseUrl}}/v1/quests/{{questId}}
+
+### Update Quest
+PATCH {{baseUrl}}/v1/quests/{{questId}}
+Content-Type: application/json
+
+{
+  "rewardAmount": 150
+}
+
+### Delete Quest
+DELETE {{baseUrl}}/v1/quests/{{questId}}

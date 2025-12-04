@@ -50,7 +50,6 @@ export class BasecardsController {
         : [];
       return {
         card_data: {
-          id: existingCard.id,
           nickname: existingCard.nickname,
           role: existingCard.role,
           bio: existingCard.bio,
@@ -99,12 +98,13 @@ export class BasecardsController {
     return this.basecardsService.update(id, updateBasecardDto);
   }
 
-  @Put('basecard/:address')
+  @Put(':address')
   updateTokenId(
     @Param('address') address: string,
-    @Body('tokenId') tokenId: number,
+    @Body('tokenId') tokenId: number | null,
+    @Body('txHash') txHash: string,
   ) {
-    return this.basecardsService.updateTokenId(address, tokenId);
+    return this.basecardsService.updateTokenId(address, tokenId, txHash);
   }
 
   @Delete(':address')

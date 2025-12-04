@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    container_name: basecard-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - basecard-network
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: basecard-tunnel
+    restart: always
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - basecard-network
+
+networks:
+  basecard-network:
+    driver: bridge

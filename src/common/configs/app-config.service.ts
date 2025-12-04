@@ -15,6 +15,8 @@ export class AppConfigService implements OnModuleInit {
       'PINATA_JWT',
       'PINATA_GATEWAY',
       'PINATA_GROUP',
+      'BASECARD_CONTRACT_ADDRESS',
+      'BASE_WS_RPC_URLS',
     ];
 
     const missingKeys = requiredKeys.filter(
@@ -67,5 +69,25 @@ export class AppConfigService implements OnModuleInit {
 
   get supabaseKey(): string | undefined {
     return this.configService.get<string>('SUPABASE_KEY');
+  }
+
+  // Blockchain
+  get baseRpcUrl(): string {
+    return this.configService.get<string>(
+      'BASE_RPC_URL',
+      'https://sepolia.base.org',
+    );
+  }
+
+  get baseWsRpcUrls(): string[] {
+    const urls = this.configService.get<string>('BASE_WS_RPC_URLS');
+    if (urls) {
+      return urls.split(',').map((url) => url.trim());
+    }
+    return [];
+  }
+
+  get baseCardContractAddress(): string | undefined {
+    return this.configService.get<string>('BASECARD_CONTRACT_ADDRESS');
   }
 }

@@ -508,3 +508,117 @@ Verifies if a user has completed a specific quest and awards points.
     "error": null
   }
   ```
+
+---
+
+## 6. Events
+
+### Receive Contract Event
+
+Receives a contract event from an indexer or webhook.
+
+- **URL**: `/events`
+- **Method**: `POST`
+- **Request Body**:
+  ```json
+  {
+    "transactionHash": "0x...",
+    "blockNumber": 123456,
+    "blockHash": "0x...",
+    "logIndex": 0,
+    "eventName": "MintBaseCard",
+    "args": {
+      "user": "0x...",
+      "tokenId": 1
+    }
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "eventId": "uuid-string"
+  }
+  ```
+
+### Get All Events
+
+Retrieves a list of all contract events.
+
+- **URL**: `/events`
+- **Method**: `GET`
+- **Response**:
+
+  ```json
+  [
+    {
+      "id": "uuid-string",
+      "transactionHash": "0x...",
+      "blockNumber": 123456,
+      "blockHash": "0x...",
+      "logIndex": 0,
+      "eventName": "MintBaseCard",
+      "args": { ... },
+      "processed": true,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+  ```
+
+## Quests
+
+### Create Quest
+
+- **URL**: `/v1/quests`
+- **Method**: `POST`
+- **Description**: Create a new quest.
+- **Request Body**:
+  ```json
+  {
+    "title": "Quest Title",
+    "description": "Quest Description",
+    "rewardAmount": 100,
+    "actionType": "MINT"
+  }
+  ```
+- **Response**:
+  - **201 Created**: Returns the created quest.
+
+### Get All Quests
+
+- **URL**: `/v1/quests`
+- **Method**: `GET`
+- **Description**: Retrieve all quests.
+- **Response**:
+  - **200 OK**: Returns a list of quests.
+
+### Get Quest by ID
+
+- **URL**: `/v1/quests/:id`
+- **Method**: `GET`
+- **Description**: Retrieve a specific quest by ID.
+- **Response**:
+  - **200 OK**: Returns the quest object.
+
+### Update Quest
+
+- **URL**: `/v1/quests/:id`
+- **Method**: `PATCH`
+- **Description**: Update a quest.
+- **Request Body**:
+  ```json
+  {
+    "title": "Updated Title",
+    "rewardAmount": 150
+  }
+  ```
+- **Response**:
+  - **200 OK**: Returns the updated quest.
+
+### Delete Quest
+
+- **URL**: `/v1/quests/:id`
+- **Method**: `DELETE`
+- **Description**: Delete a quest.
+- **Response**:
+  - **200 OK**: Returns the deletion result.

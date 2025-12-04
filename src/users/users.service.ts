@@ -31,6 +31,25 @@ export class UsersService {
       })
       .returning();
     this.logger.log(`Created new user: ${user.id}`);
+
+    // Initialize User Quests
+    const activeQuests = await this.db.query.quests.findMany({
+      where: eq(schema.quests.isActive, true),
+    });
+
+    if (activeQuests.length > 0) {
+      await this.db.insert(schema.userQuests).values(
+        activeQuests.map((quest) => ({
+          userId: user.id,
+          questId: quest.id,
+          status: 'pending' as const,
+        })),
+      );
+      this.logger.log(
+        `Initialized ${activeQuests.length} quests for user ${user.id}`,
+      );
+    }
+
     return user;
   }
 
@@ -70,7 +89,17 @@ export class UsersService {
     return updated;
   }
 
-  async increasePoints(address: string, points: number) {
+  async increasePoints(
+    address: string,
+    points: number,
+    type:
+      | 'QUEST_REWARD'
+      | 'MINT_BONUS'
+      | 'REFERRAL'
+      | 'ADMIN_ADJUST' = 'ADMIN_ADJUST',
+    questId?: string,
+    eventId?: string,
+  ) {
     const user = await this.db.query.users.findFirst({
       where: eq(schema.users.walletAddress, address),
     });
@@ -80,15 +109,26 @@ export class UsersService {
       throw new Error('User not found');
     }
 
-    const [updated] = await this.db
-      .update(schema.users)
-      .set({
-        totalPoints: user.totalPoints + points,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.users.walletAddress, address))
-      .returning();
-    return updated;
+    return await this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(schema.users)
+        .set({
+          totalPoints: user.totalPoints + points,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.users.walletAddress, address))
+        .returning();
+
+      await tx.insert(schema.pointLogs).values({
+        userId: user.id,
+        amount: points,
+        type: type,
+        questId: questId,
+        eventId: eventId,
+      });
+
+      return updated;
+    });
   }
 
   async updateByAddress(address: string, updateUserDto: UpdateUserDto) {

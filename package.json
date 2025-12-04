@@ -23,9 +23,11 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:reset": "ts-node scripts/reset-db.ts",
+    "reset:db": "ts-node scripts/reset-db.ts",
     "reset:bucket": "ts-node scripts/reset-bucket.ts",
+    "reset:all": "npm run reset:db && npm run reset:bucket && npm run db:generate && npm run db:migrate && npm run db:seed",
     "db:check": "ts-node scripts/check-db-connection.ts",
+    "db:seed": "ts-node scripts/seed-quests.ts",
     "test:services": "ts-node scripts/test-services.ts"
   },
   "dependencies": {
@@ -34,6 +36,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.3",
     "@supabase/supabase-js": "^2.86.0",
     "class-transformer": "^0.5.1",
@@ -44,7 +47,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.34.5",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "viem": "^2.41.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

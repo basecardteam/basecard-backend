@@ -101,7 +101,6 @@ export class BasecardsService {
 
     return {
       card_data: {
-        id: card.id,
         nickname: card.nickname,
         role: card.role,
         bio: card.bio,
@@ -153,10 +152,10 @@ export class BasecardsService {
         'image/png',
       );
 
-      if (!ipfsResult.success || !ipfsResult.url) {
+      if (!ipfsResult.success || !ipfsResult.cid) {
         throw new Error(`IPFS upload failed: ${ipfsResult.error}`);
       }
-      const nftUri = ipfsResult.url;
+      const nftUri = `ipfs://${ipfsResult.cid}`;
       this.logger.log(`IPFS Uploaded: ${nftUri}`);
 
       return {
@@ -236,7 +235,11 @@ export class BasecardsService {
     return updated;
   }
 
-  async updateTokenId(address: string, tokenId: number) {
+  async updateTokenId(
+    address: string,
+    tokenId: number | null,
+    txHash?: string,
+  ) {
     const user = await this.db.query.users.findFirst({
       where: eq(schema.users.walletAddress, address),
     });
@@ -246,14 +249,21 @@ export class BasecardsService {
     }
 
     // Find card for user
-    // Assuming one card per user for now based on 'hasMintedCard' in users table
-    // But cards table has userId.
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (tokenId !== null) {
+      updateData.tokenId = tokenId;
+    }
+
+    if (txHash) {
+      updateData.txHash = txHash;
+    }
+
     const [updated] = await this.db
       .update(schema.basecards)
-      .set({
-        tokenId: tokenId,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(schema.basecards.userId, user.id))
       .returning();
 
@@ -320,10 +330,18 @@ export class BasecardsService {
 
       if (card && card.imageUri) {
         // Extract CID from IPFS URL
-        // Format: https://ipfs.io/ipfs/<cid>
-        const parts = card.imageUri.split('/ipfs/');
-        if (parts.length === 2) {
-          const cid = parts[1];
+        // Format: https://ipfs.io/ipfs/<cid> or ipfs://<cid>
+        let cid = '';
+        if (card.imageUri.startsWith('ipfs://')) {
+          cid = card.imageUri.replace('ipfs://', '');
+        } else {
+          const parts = card.imageUri.split('/ipfs/');
+          if (parts.length === 2) {
+            cid = parts[1];
+          }
+        }
+
+        if (cid) {
           await this.ipfsService.deleteFile(cid);
           this.logger.log(`Deleted IPFS file: ${cid}`);
         }

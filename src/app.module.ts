@@ -9,6 +9,7 @@ import { BasecardsModule } from './basecards/basecards.module';
 import { EarnModule } from './earn/earn.module';
 import { QuestsModule } from './quests/quests.module';
 import { CollectionsModule } from './collections/collections.module';
+import { EventsModule } from './events/events.module';
 import { LoggingMiddleware } from './common/middleware/logging.middleware';
 
 @Module({
@@ -21,6 +22,7 @@ import { LoggingMiddleware } from './common/middleware/logging.middleware';
     EarnModule,
     QuestsModule,
     CollectionsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

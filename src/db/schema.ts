@@ -44,6 +44,7 @@ export const basecards = pgTable(
 
     // Contract Metadata Mirroring
     tokenId: integer('token_id'),
+    txHash: text('tx_hash'),
 
     // basecard metadata
     nickname: varchar('nickname', { length: 256 }),
@@ -102,7 +103,8 @@ export const pointLogs = pgTable('point_logs', {
     .notNull(),
   amount: integer('amount').notNull(),
   type: pointLogTypeEnum('type').notNull(),
-  referenceId: text('reference_id'),
+  questId: uuid('quest_id').references(() => quests.id),
+  eventId: uuid('event_id').references(() => contractEvents.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -164,6 +166,30 @@ export const collections = pgTable(
       table.collectorUserId,
       table.collectedCardId,
     ),
+  }),
+);
+
+// --------------------------------------------------------------------------
+// 7. Contract Events (Indexer)
+// --------------------------------------------------------------------------
+export const contractEvents = pgTable(
+  'contract_events',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    transactionHash: text('transaction_hash').notNull(),
+    blockNumber: integer('block_number').notNull(),
+    blockHash: text('block_hash').notNull(),
+    logIndex: integer('log_index').notNull(),
+    eventName: text('event_name').notNull(),
+    args: jsonb('args').notNull(), // { user: "0x...", tokenId: 1 }
+    processed: boolean('processed').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    // One transaction might have multiple events, but usually unique per log index.
+    // For simplicity, we index txHash.
+    txHashIdx: index('contract_events_tx_hash_idx').on(table.transactionHash),
+    blockHashIdx: index('contract_events_block_hash_idx').on(table.blockHash),
   }),
 );
 
