@@ -69,25 +69,55 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private reconnectAttempts = 0;
+  private readonly maxReconnectAttempts = 5;
+  private readonly reconnectDelay = 3000; // 3 seconds
+
   private subscribeToEvents() {
     this.logger.log('Subscribing to MintBaseCard events...');
-    this.unwatch = this.client.watchContractEvent({
-      address: this.contractAddress as `0x${string}`,
-      abi: [
-        parseAbiItem(
-          'event MintBaseCard(address indexed user, uint256 indexed tokenId)',
-        ),
-      ],
-      eventName: 'MintBaseCard',
-      onLogs: async (logs) => {
-        for (const log of logs) {
-          await this.processLog(log);
-        }
-      },
-      onError: (error) => {
-        this.logger.error('Error in event subscription', error);
-      },
-    });
+    try {
+      this.unwatch = this.client.watchContractEvent({
+        address: this.contractAddress as `0x${string}`,
+        abi: [
+          parseAbiItem(
+            'event MintBaseCard(address indexed user, uint256 indexed tokenId)',
+          ),
+        ],
+        eventName: 'MintBaseCard',
+        onLogs: async (logs) => {
+          this.reconnectAttempts = 0; // Reset attempts on successful log receipt
+          for (const log of logs) {
+            await this.processLog(log);
+          }
+        },
+        onError: (error) => {
+          this.logger.error('Error in event subscription', error);
+          this.reconnect();
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to set up event watcher', error);
+      this.reconnect();
+    }
+  }
+
+  private reconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.logger.error(
+        `Max reconnect attempts (${this.maxReconnectAttempts}) reached. Stopping reconnection.`,
+      );
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = this.reconnectDelay * this.reconnectAttempts;
+    this.logger.log(
+      `Attempting to reconnect in ${delay}ms (Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`,
+    );
+
+    setTimeout(() => {
+      this.subscribeToEvents();
+    }, delay);
   }
 
   private async processLog(log: any) {

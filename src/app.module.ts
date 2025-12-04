@@ -11,6 +11,7 @@ import { QuestsModule } from './quests/quests.module';
 import { CollectionsModule } from './collections/collections.module';
 import { EventsModule } from './events/events.module';
 import { LoggingMiddleware } from './common/middleware/logging.middleware';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { LoggingMiddleware } from './common/middleware/logging.middleware';
     QuestsModule,
     CollectionsModule,
     EventsModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

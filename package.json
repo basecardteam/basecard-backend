@@ -28,16 +28,19 @@
     "reset:all": "npm run reset:db && npm run reset:bucket && npm run db:generate && npm run db:migrate && npm run db:seed",
     "db:check": "ts-node scripts/check-db-connection.ts",
     "db:seed": "ts-node scripts/seed-quests.ts",
-    "test:services": "ts-node scripts/test-services.ts"
+    "test:services": "ts-node scripts/test-services.ts",
+    "docker:test": "./scripts/docker-local-test.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.940.0",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.3",
+    "@nestjs/terminus": "^11.0.0",
     "@supabase/supabase-js": "^2.86.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
