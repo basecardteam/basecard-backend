@@ -10,4 +10,4 @@ docker compose up --build -d
 
 # Show logs
 echo "Containers started. Tailing logs (Ctrl+C to exit logs, containers will keep running)..."
-docker compose logs -f app
+docker compose logs -f basecard-backend
