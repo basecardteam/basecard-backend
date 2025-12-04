@@ -29,12 +29,20 @@ export class IpfsService {
     }
   }
 
-  async uploadFile(file: File): Promise<IPFSUploadResponse> {
+  async uploadFile(
+    buffer: Buffer,
+    filename: string,
+    mimeType: string,
+  ): Promise<IPFSUploadResponse> {
     try {
       const group = this.configService.pinataGroup;
       if (!group) {
         throw new Error('PINATA_GROUP not configured');
       }
+
+      const file = new File([new Uint8Array(buffer)], filename, {
+        type: mimeType,
+      });
 
       const upload = await this.pinata.upload.public.file(file).group(group);
 

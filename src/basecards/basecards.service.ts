@@ -1,0 +1,341 @@
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { CreateBasecardDto } from './dto/create-basecard.dto';
+import { UpdateBasecardDto } from './dto/update-basecard.dto';
+import { DRIZZLE } from '../db/db.module';
+import * as schema from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+
+import { S3Service } from '../common/services/s3.service';
+import { IpfsService } from '../common/services/ipfs.service';
+import { ImageService } from '../common/services/image.service';
+
+@Injectable()
+export class BasecardsService {
+  private readonly logger = new Logger(BasecardsService.name);
+
+  constructor(
+    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
+    private s3Service: S3Service,
+    private ipfsService: IpfsService,
+    private imageService: ImageService,
+  ) {}
+
+  async checkHasMinted(address: string): Promise<boolean> {
+    // TODO: Implement contract check
+    // const { data: hasMinted } = useReadContract({
+    //     address: BASECARD_CONTRACT_ADDRESS,
+    //     abi: baseCardAbi,
+    //     functionName: "hasMinted",
+    //     args: userAddress ? [userAddress] : undefined,
+    // });
+    return false;
+  }
+
+  async create(
+    createBasecardDto: CreateBasecardDto,
+    file: Express.Multer.File,
+  ) {
+    // Check if user has already minted (Contract check)
+    const hasMinted = await this.checkHasMinted(createBasecardDto.address);
+    if (hasMinted) {
+      throw new Error(
+        'You have already minted a BaseCard. Each address can only mint once.',
+      );
+    }
+
+    // Find user by address to get ID
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.walletAddress, createBasecardDto.address),
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Process Image (Minting)
+    this.logger.log('Processing profile image file...');
+    const { imageURI, profileImage } = await this.processMinting(
+      file,
+      createBasecardDto,
+    );
+
+    const card = await this.db.transaction(async (tx) => {
+      const [newCard] = await tx
+        .insert(schema.basecards)
+        .values({
+          userId: user.id,
+          nickname: createBasecardDto.nickname,
+          role: createBasecardDto.role,
+          bio: createBasecardDto.bio,
+          imageUri: imageURI,
+          socials: createBasecardDto.socials,
+        })
+        .returning();
+
+      // Update user with profile image
+      if (profileImage) {
+        await tx
+          .update(schema.users)
+          .set({ profileImage: profileImage })
+          .where(eq(schema.users.id, user.id));
+      }
+
+      return newCard;
+    });
+
+    // Format response as per spec
+    const socialKeys = createBasecardDto.socials
+      ? Object.keys(createBasecardDto.socials)
+      : [];
+    const socialValues = createBasecardDto.socials
+      ? Object.values(createBasecardDto.socials)
+      : [];
+
+    this.logger.log(`Card created: ${card.id}`);
+
+    return {
+      card_data: {
+        id: card.id,
+        nickname: card.nickname,
+        role: card.role,
+        bio: card.bio,
+        imageUri: card.imageUri,
+      },
+      social_keys: socialKeys,
+      social_values: socialValues,
+    };
+  }
+
+  async processMinting(
+    file: Express.Multer.File,
+    dto: CreateBasecardDto,
+  ): Promise<{ imageURI: string; profileImage: string }> {
+    let s3Key = '';
+    try {
+      // A. Optimize Image for S3 (No Rounding, WebP)
+      const optimized = await this.imageService.optimizeImage(file.buffer);
+      s3Key = `profiles/${dto.address}/${Date.now()}-${file.originalname.split('.')[0]}.webp`;
+
+      const profileImageUrl = await this.s3Service.uploadFile(
+        Buffer.from(optimized.base64, 'base64'),
+        s3Key,
+        optimized.mimeType,
+      );
+
+      this.logger.log(`S3 Uploaded: ${profileImageUrl}`);
+
+      // B. Generate NFT PNG (Rounded)
+      const profileData = {
+        nickname: dto.nickname,
+        role: dto.role,
+        bio: dto.bio,
+      };
+
+      const preparedImage = await this.imageService.prepareProfileImage(
+        file.buffer,
+      );
+
+      const nftPngBuffer = await this.imageService.generateNftPng(
+        profileData,
+        preparedImage.dataUrl,
+      );
+
+      // C. Upload NFT PNG to IPFS
+      const ipfsResult = await this.ipfsService.uploadFile(
+        nftPngBuffer,
+        `nft-${dto.address}-${Date.now()}.png`,
+        'image/png',
+      );
+
+      if (!ipfsResult.success || !ipfsResult.url) {
+        throw new Error(`IPFS upload failed: ${ipfsResult.error}`);
+      }
+      const nftUri = ipfsResult.url;
+      this.logger.log(`IPFS Uploaded: ${nftUri}`);
+
+      return {
+        imageURI: nftUri,
+        profileImage: profileImageUrl,
+      };
+    } catch (error) {
+      this.logger.error('Generating basecard failed', error);
+
+      // when something goes wrong, delete the profile image from S3
+      if (s3Key) {
+        await this.s3Service.deleteFile(s3Key);
+      }
+
+      throw error;
+    }
+  }
+
+  async findAll() {
+    const cards = await this.db.query.basecards.findMany({
+      with: {
+        user: true,
+      },
+    });
+
+    return cards.map((card) => ({
+      id: card.id,
+      userId: card.userId,
+      nickname: card.nickname,
+      role: card.role,
+      bio: card.bio,
+      address: card.user.walletAddress,
+      socials: card.socials,
+      tokenId: card.tokenId,
+      imageUri: card.imageUri,
+      createdAt: card.createdAt,
+      updatedAt: card.updatedAt,
+    }));
+  }
+
+  async findOne(id: string) {
+    const card = await this.db.query.basecards.findFirst({
+      where: eq(schema.basecards.id, id),
+      with: {
+        user: true,
+      },
+    });
+
+    if (!card) {
+      return null;
+    }
+
+    return {
+      id: card.id,
+      userId: card.userId,
+      nickname: card.nickname,
+      role: card.role,
+      bio: card.bio,
+      address: card.user.walletAddress,
+      socials: card.socials,
+      tokenId: card.tokenId,
+      imageUri: card.imageUri,
+      createdAt: card.createdAt,
+      updatedAt: card.updatedAt,
+    };
+  }
+
+  async update(id: string, updateBasecardDto: UpdateBasecardDto) {
+    const [updated] = await this.db
+      .update(schema.basecards)
+      .set({
+        ...updateBasecardDto,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.basecards.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateTokenId(address: string, tokenId: number) {
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.walletAddress, address),
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Find card for user
+    // Assuming one card per user for now based on 'hasMintedCard' in users table
+    // But cards table has userId.
+    const [updated] = await this.db
+      .update(schema.basecards)
+      .set({
+        tokenId: tokenId,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.basecards.userId, user.id))
+      .returning();
+
+    // Also update user hasMintedCard
+    await this.db
+      .update(schema.users)
+      .set({ hasMintedCard: true })
+      .where(eq(schema.users.id, user.id));
+
+    return updated;
+  }
+
+  async findByAddress(address: string) {
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.walletAddress, address),
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return this.db.query.basecards.findFirst({
+      where: eq(schema.basecards.userId, user.id),
+      with: {
+        user: true,
+      },
+    });
+  }
+
+  remove(id: string) {
+    return this.db.delete(schema.basecards).where(eq(schema.basecards.id, id));
+  }
+
+  async removeByAddress(address: string) {
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.walletAddress, address),
+    });
+
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    // Check if card exists and has tokenId
+    const card = await this.db.query.basecards.findFirst({
+      where: eq(schema.basecards.userId, user.id),
+    });
+
+    if (card && card.tokenId !== null) {
+      throw new BadRequestException('Cannot delete minted card');
+    }
+
+    // Best effort: Delete images from S3 and IPFS
+    try {
+      if (user.profileImage) {
+        // Extract key from Supabase URL
+        // Format: .../storage/v1/object/public/basecard-assets/<key>
+        const parts = user.profileImage.split('basecard-assets/');
+        if (parts.length === 2) {
+          const s3Key = parts[1];
+          await this.s3Service.deleteFile(s3Key);
+          this.logger.log(`Deleted S3 file: ${s3Key}`);
+        }
+      }
+
+      if (card && card.imageUri) {
+        // Extract CID from IPFS URL
+        // Format: https://ipfs.io/ipfs/<cid>
+        const parts = card.imageUri.split('/ipfs/');
+        if (parts.length === 2) {
+          const cid = parts[1];
+          await this.ipfsService.deleteFile(cid);
+          this.logger.log(`Deleted IPFS file: ${cid}`);
+        }
+      }
+    } catch (error) {
+      this.logger.warn('Failed to cleanup images during card deletion', error);
+      // Continue with DB deletion even if image cleanup fails
+    }
+
+    await this.db
+      .delete(schema.basecards)
+      .where(eq(schema.basecards.userId, user.id));
+    return { success: true };
+  }
+}

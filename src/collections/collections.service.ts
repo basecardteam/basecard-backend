@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { DRIZZLE } from '../db/db.module';
@@ -11,11 +11,18 @@ export class CollectionsService {
   constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
 
   async create(createCollectionDto: CreateCollectionDto) {
-    const [collection] = await this.db
-      .insert(schema.collections)
-      .values(createCollectionDto)
-      .returning();
-    return collection;
+    try {
+      const [collection] = await this.db
+        .insert(schema.collections)
+        .values(createCollectionDto)
+        .returning();
+      return collection;
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new BadRequestException('Collection already exists');
+      }
+      throw error;
+    }
   }
 
   findAll() {

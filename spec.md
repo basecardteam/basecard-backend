@@ -195,13 +195,13 @@ Increases the user's total points by the specified amount.
 
 ---
 
-## 2. Card Management
+## 2. Basecard Management
 
-### Create Card Data
+### Create Basecard Data
 
 generate the card data for minting ERC721 NFT in backend side and save it to the database.
 
-- **URL**: `/cards`
+- **URL**: `/basecards`
 - **Method**: `POST`
 - **Request Body**:
   ```json
@@ -232,11 +232,11 @@ generate the card data for minting ERC721 NFT in backend side and save it to the
   }
   ```
 
-### Get All Cards
+### Get All Basecards
 
 Retrieves a list of all minted cards.
 
-- **URL**: `/cards`
+- **URL**: `/basecards`
 - **Method**: `GET`
 - **Response**:
   ```json
@@ -260,11 +260,11 @@ Retrieves a list of all minted cards.
   }
   ```
 
-### Update Card
+### Update Basecard
 
 Updates an existing card's information.
 
-- **URL**: `/cards/:id`
+- **URL**: `/basecards/:id`
 - **Method**: `PATCH`
 - **Request Body**:
   ```json
@@ -279,7 +279,7 @@ Updates an existing card's information.
 
 Updates the minted Token ID for a user's card.
 
-- **URL**: `/cards/card/:address`
+- **URL**: `/basecards/basecard/:address`
 - **Method**: `PUT`
 - **Request Body**:
   ```json
@@ -289,11 +289,89 @@ Updates the minted Token ID for a user's card.
   ```
 - **Response**: Updated Card object
 
-### Delete Card
+### Delete Basecard
 
 Deletes a user's card data.
 
-- **URL**: `/cards/card/:address`
+- **URL**: `/basecards/basecard/:address`
+- **Method**: `DELETE`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "result": { "success": true },
+    "error": null
+  }
+  ```
+
+---
+
+## 3. Collection Management
+
+### Create Collection
+
+Collects a card for a user.
+
+- **URL**: `/collections`
+- **Method**: `POST`
+- **Request Body**:
+  ```json
+  {
+    "collectorUserId": "uuid-string",
+    "collectedCardId": "uuid-string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "result": {
+      "id": "uuid-string",
+      "collectorUserId": "uuid-string",
+      "collectedCardId": "uuid-string",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    "error": null
+  }
+  ```
+
+### Get All Collections
+
+Retrieves a list of all collections.
+
+- **URL**: `/collections`
+- **Method**: `GET`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "result": [
+      {
+        "id": "uuid-string",
+        "collectorUserId": "uuid-string",
+        "collectedCardId": "uuid-string",
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "collector": { ... },
+        "collectedCard": { ... }
+      }
+    ],
+    "error": null
+  }
+  ```
+
+### Get Collection by ID
+
+Retrieves a specific collection by ID.
+
+- **URL**: `/collections/:id`
+- **Method**: `GET`
+- **Response**: Collection object
+
+### Delete Collection
+
+Deletes a collection.
+
+- **URL**: `/collections/:id`
 - **Method**: `DELETE`
 - **Response**:
   ```json

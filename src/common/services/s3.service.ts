@@ -64,7 +64,7 @@ export class S3Service {
   }
 
   async uploadFile(
-    file: File,
+    buffer: Buffer,
     key: string,
     contentType: string,
   ): Promise<string> {
@@ -74,9 +74,6 @@ export class S3Service {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
-
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
 
       const { data, error } = await this.supabase.storage
         .from(this.bucketName)
@@ -96,6 +93,27 @@ export class S3Service {
       return publicUrlData.publicUrl;
     } catch (error) {
       this.logger.error('Supabase upload error', error);
+      throw error;
+    }
+  }
+
+  async deleteFile(key: string): Promise<void> {
+    try {
+      await this.initializationPromise;
+
+      if (!this.supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const { error } = await this.supabase.storage
+        .from(this.bucketName)
+        .remove([key]);
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      this.logger.error('Supabase delete error', error);
       throw error;
     }
   }

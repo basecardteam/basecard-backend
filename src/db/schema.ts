@@ -33,8 +33,8 @@ export const users = pgTable('users', {
 // --------------------------------------------------------------------------
 // 2. Cards (Profile & NFT)
 // --------------------------------------------------------------------------
-export const cards = pgTable(
-  'cards',
+export const basecards = pgTable(
+  'basecards',
   {
     id: uuid('id').defaultRandom().primaryKey(),
     userId: uuid('user_id')
@@ -50,17 +50,12 @@ export const cards = pgTable(
     role: text('role'),
     bio: text('bio'),
     imageUri: text('image_uri'), // NFT Metadata URI (IPFS)
-
-    // basecard social data
     socials: jsonb('socials'), // { "twitter": "@handle", ... }
 
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
-  (table) => [
-    index('cards_user_id_idx').on(table.userId),
-    index('cards_role_idx').on(table.role),
-  ],
+  (table) => [index('basecards_user_id_idx').on(table.userId)],
 );
 
 // --------------------------------------------------------------------------
@@ -161,7 +156,7 @@ export const collections = pgTable(
       .references(() => users.id), // 수집한 사람
     collectedCardId: uuid('collected_card_id')
       .notNull()
-      .references(() => cards.id), // 수집된 카드
+      .references(() => basecards.id), // 수집된 카드
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
@@ -177,9 +172,9 @@ export const collections = pgTable(
 // --------------------------------------------------------------------------
 
 export const usersRelations = relations(users, ({ one, many }) => ({
-  card: one(cards, {
+  card: one(basecards, {
     fields: [users.id],
-    references: [cards.userId],
+    references: [basecards.userId],
   }),
   pointLogs: many(pointLogs),
   completedQuests: many(userQuests),
@@ -187,9 +182,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   collections: many(collections), // 내가 수집한 카드들
 }));
 
-export const cardsRelations = relations(cards, ({ one, many }) => ({
+export const cardsRelations = relations(basecards, ({ one, many }) => ({
   user: one(users, {
-    fields: [cards.userId],
+    fields: [basecards.userId],
     references: [users.id],
   }),
   collectedBy: many(collections),
@@ -215,8 +210,8 @@ export const collectionsRelations = relations(collections, ({ one }) => ({
     fields: [collections.collectorUserId],
     references: [users.id],
   }),
-  collectedCard: one(cards, {
+  collectedCard: one(basecards, {
     fields: [collections.collectedCardId],
-    references: [cards.id],
+    references: [basecards.id],
   }),
 }));

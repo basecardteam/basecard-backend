@@ -42,7 +42,7 @@ PATCH {{baseUrl}}/v1/users/{{bobAddress}}
 Content-Type: application/json
 
 {
-    "hasMintedCard": false
+    "hasMintedCard": true
 }
 
 ### Increase User's totalPoints
@@ -54,41 +54,78 @@ Content-Type: application/json
 }
 
 ### ===========================================
-### CARD API
+### BASECARD API
 ### ===========================================
 
-### Get All Cards
-GET {{baseUrl}}/v1/cards
+### Get All Basecards
+GET {{baseUrl}}/v1/basecards
 
-### Create Card (Multipart)
-# Note: This request requires the 'REST Client' extension in VS Code.
-# Ensure 'test/samples/profile1.png' exists or update the path.
-POST {{baseUrl}}/v1/cards
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+### Create Basecard (Multipart)
+POST {{baseUrl}}/v1/basecards
+Content-Type: multipart/form-data; boundary=boundary
 
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+--boundary
 Content-Disposition: form-data; name="nickname"
 
-Bob
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+Alice
+--boundary
 Content-Disposition: form-data; name="role"
 
 Developer
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+--boundary
 Content-Disposition: form-data; name="bio"
 
-Hello BaseCard!
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+Hello BaseCard!, I'm Alice
+--boundary
 Content-Disposition: form-data; name="address"
 
-{{bobAddress}}
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+{{aliceAddress}}
+--boundary
 Content-Disposition: form-data; name="socials"
 
-{"twitter":"@bob", "farcaster":"@bobcatser", "basename":"bob.base.eth"}
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+{"twitter": "@alice_twitter", "farcaster": "@alice.farcaster.eth"}
+--boundary
 Content-Disposition: form-data; name="profileImageFile"; filename="profile1.png"
 Content-Type: image/png
 
 < ./test/samples/profile1.png
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
+--boundary--
+
+
+### Update Token ID
+PUT {{baseUrl}}/v1/basecards/basecard/{{aliceAddress}}
+Content-Type: application/json
+
+{
+  "tokenId": 123
+}
+
+### Delete Basecard by Address
+DELETE {{baseUrl}}/v1/basecards/{{aliceAddress}}
+
+### ===========================================
+### COLLECTION API
+### ===========================================
+
+### Create Collection
+POST {{baseUrl}}/v1/collections
+Content-Type: application/json
+
+{
+  "collectorUserId": "{{userId}}",
+  "collectedCardId": "{{cardId}}"
+}
+
+### Get All Collections
+GET {{baseUrl}}/v1/collections
+
+### Get Collection by ID
+GET {{baseUrl}}/v1/collections/{{collectionId}}
+
+### Delete Collection
+DELETE {{baseUrl}}/v1/collections/{{collectionId}}
+Content-Type: application/json
+
+{
+  "tokenId": 123
+}

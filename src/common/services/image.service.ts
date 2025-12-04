@@ -5,11 +5,10 @@ import * as path from 'path';
 
 export interface BaseCardProfile {
   nickname: string;
-  basename: string;
   role: string;
-  profileImage?: string;
-  skills?: string[];
   bio?: string;
+  profileImage?: string;
+  basename?: string;
 }
 
 export interface BaseCardOptions {
@@ -87,7 +86,7 @@ export class ImageService implements OnModuleInit {
     };
 
     const truncatedNickname = truncateText(profile.nickname, 20);
-    const truncatedBasename = truncateText(profile.basename, 25);
+    const truncatedBasename = truncateText(profile.basename || '', 25);
     const truncatedRole = truncateText(profile.role, 30);
 
     return `
@@ -184,6 +183,32 @@ export class ImageService implements OnModuleInit {
       base64: base64,
       mimeType: finalMimeType,
     };
+    return {
+      base64: base64,
+      mimeType: finalMimeType,
+    };
+  }
+
+  async prepareProfileImage(imageBuffer: Buffer): Promise<{
+    buffer: Buffer;
+    base64: string;
+    dataUrl: string;
+  }> {
+    // 1. Prepare image for embedding (Resize and convert to PNG for compatibility)
+    // Using PNG instead of WebP for better compatibility with SVG renderers
+    const embeddedImageBuffer = await sharp(imageBuffer)
+      .resize(512, 512, { fit: 'cover' })
+      .png()
+      .toBuffer();
+
+    const base64 = embeddedImageBuffer.toString('base64');
+    const dataUrl = `data:image/png;base64,${base64}`;
+
+    return {
+      buffer: embeddedImageBuffer,
+      base64,
+      dataUrl,
+    };
   }
 
   /**
@@ -195,18 +220,8 @@ export class ImageService implements OnModuleInit {
    */
   async generateNftPng(
     profile: BaseCardProfile,
-    imageBuffer: Buffer,
+    profileImageDataUrl: string,
   ): Promise<Buffer> {
-    // 1. Prepare image for embedding (Resize and convert to PNG for compatibility)
-    // Using PNG instead of WebP for better compatibility with SVG renderers
-    const embeddedImageBuffer = await sharp(imageBuffer)
-      .resize(512, 512, { fit: 'cover' })
-      .png()
-      .toBuffer();
-
-    const base64 = embeddedImageBuffer.toString('base64');
-    const profileImageDataUrl = `data:image/png;base64,${base64}`;
-
     // 2. Generate SVG with embedded image
     const svg = this.generateCardSVG({
       ...profile,

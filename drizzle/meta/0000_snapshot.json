@@ -1,11 +1,11 @@
 {
-  "id": "7a769012-026b-4a56-bc83-a714bdaac4c8",
+  "id": "2567da92-28b8-4f8b-bc8e-c0e6a6140522",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.cards": {
-      "name": "cards",
+    "public.basecards": {
+      "name": "basecards",
       "schema": "",
       "columns": {
         "id": {
@@ -73,8 +73,8 @@
         }
       },
       "indexes": {
-        "cards_user_id_idx": {
-          "name": "cards_user_id_idx",
+        "basecards_user_id_idx": {
+          "name": "basecards_user_id_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -87,27 +87,12 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "cards_role_idx": {
-          "name": "cards_role_idx",
-          "columns": [
-            {
-              "expression": "role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
-        "cards_user_id_users_id_fk": {
-          "name": "cards_user_id_users_id_fk",
-          "tableFrom": "cards",
+        "basecards_user_id_users_id_fk": {
+          "name": "basecards_user_id_users_id_fk",
+          "tableFrom": "basecards",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -121,8 +106,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "cards_user_id_unique": {
-          "name": "cards_user_id_unique",
+        "basecards_user_id_unique": {
+          "name": "basecards_user_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "user_id"
@@ -179,10 +164,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "collections_collected_card_id_cards_id_fk": {
-          "name": "collections_collected_card_id_cards_id_fk",
+        "collections_collected_card_id_basecards_id_fk": {
+          "name": "collections_collected_card_id_basecards_id_fk",
           "tableFrom": "collections",
-          "tableTo": "cards",
+          "tableTo": "basecards",
           "columnsFrom": [
             "collected_card_id"
           ],

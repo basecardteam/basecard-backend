@@ -1,7 +1,7 @@
 CREATE TYPE "public"."earn_type" AS ENUM('bounty', 'project', 'hiring');--> statement-breakpoint
 CREATE TYPE "public"."point_log_type" AS ENUM('QUEST_REWARD', 'MINT_BONUS', 'REFERRAL', 'ADMIN_ADJUST');--> statement-breakpoint
 CREATE TYPE "public"."quest_status" AS ENUM('pending', 'completed');--> statement-breakpoint
-CREATE TABLE "cards" (
+CREATE TABLE "basecards" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"token_id" integer,
@@ -12,7 +12,7 @@ CREATE TABLE "cards" (
 	"socials" jsonb,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "cards_user_id_unique" UNIQUE("user_id")
+	CONSTRAINT "basecards_user_id_unique" UNIQUE("user_id")
 );
 --> statement-breakpoint
 CREATE TABLE "collections" (
@@ -74,12 +74,11 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_wallet_address_unique" UNIQUE("wallet_address")
 );
 --> statement-breakpoint
-ALTER TABLE "cards" ADD CONSTRAINT "cards_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "basecards" ADD CONSTRAINT "basecards_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "collections" ADD CONSTRAINT "collections_collector_user_id_users_id_fk" FOREIGN KEY ("collector_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "collections" ADD CONSTRAINT "collections_collected_card_id_cards_id_fk" FOREIGN KEY ("collected_card_id") REFERENCES "public"."cards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "collections" ADD CONSTRAINT "collections_collected_card_id_basecards_id_fk" FOREIGN KEY ("collected_card_id") REFERENCES "public"."basecards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "earn" ADD CONSTRAINT "earn_owner_user_id_users_id_fk" FOREIGN KEY ("owner_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "point_logs" ADD CONSTRAINT "point_logs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_quests" ADD CONSTRAINT "user_quests_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_quests" ADD CONSTRAINT "user_quests_quest_id_quests_id_fk" FOREIGN KEY ("quest_id") REFERENCES "public"."quests"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "cards_user_id_idx" ON "cards" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "cards_role_idx" ON "cards" USING btree ("role");
+CREATE INDEX "basecards_user_id_idx" ON "basecards" USING btree ("user_id");

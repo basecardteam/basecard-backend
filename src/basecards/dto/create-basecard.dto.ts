@@ -8,7 +8,12 @@ import {
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateCardDto {
+export class CreateBasecardDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -25,21 +30,6 @@ export class CreateCardDto {
   bio?: string;
 
   @ApiProperty()
-  @IsString()
-  @IsOptional()
-  imageUri?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  address: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  profileImage?: string;
-
-  @ApiProperty()
   @IsObject()
   @IsOptional()
   @Transform(({ value }) => {
@@ -53,4 +43,7 @@ export class CreateCardDto {
     return value;
   })
   socials?: Record<string, string>;
+
+  @ApiProperty({ type: 'string', format: 'binary', required: false })
+  profileImageFile: any;
 }
