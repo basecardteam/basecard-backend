@@ -11,7 +11,7 @@ All endpoints are prefixed with `/v1`.
 - Implementation Status:
   - [x] users
   - [x] cards
-  - [ ] collections
+  - [x] collections
   - [ ] point_logs
   - [ ] quests
 
@@ -317,8 +317,8 @@ Collects a card for a user.
 - **Request Body**:
   ```json
   {
-    "collectorUserId": "uuid-string",
-    "collectedCardId": "uuid-string"
+    "collectorAddress": "0x123...",
+    "collectedAddress": "0x456..."
   }
   ```
 - **Response**:
@@ -341,7 +341,9 @@ Retrieves a list of all collections.
 
 - **URL**: `/collections`
 - **Method**: `GET`
-- **Response**:
+- **Query Params**:
+  - `address` (optional): Filter by collector's wallet address.
+- **Response (No Filter)**: Returns a list of Collection objects (including collector and collected card info).
   ```json
   {
     "success": true,
@@ -351,8 +353,25 @@ Retrieves a list of all collections.
         "collectorUserId": "uuid-string",
         "collectedCardId": "uuid-string",
         "createdAt": "2024-01-01T00:00:00.000Z",
-        "collector": { ... },
-        "collectedCard": { ... }
+        "collector": { "walletAddress": "0x...", ... },
+        "collectedCard": { "nickname": "...", "role": "...", ... }
+      }
+    ],
+    "error": null
+  }
+  ```
+- **Response (With `?address=0x...` Filter)**: Returns a list of **Basecard** objects (only the cards collected by the user).
+  ```json
+  {
+    "success": true,
+    "result": [
+      {
+        "id": "uuid-string", // Card ID
+        "nickname": "Collected User",
+        "role": "Developer",
+        "bio": "...",
+        "imageUri": "..."
+        // ... other card fields
       }
     ],
     "error": null

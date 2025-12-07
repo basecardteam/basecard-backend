@@ -107,6 +107,15 @@ export class BasecardsController {
     return this.basecardsService.updateTokenId(address, tokenId, txHash);
   }
 
+  @Get('address/:address')
+  async findByAddress(@Param('address') address: string) {
+    const card = await this.basecardsService.findByAddress(address);
+    if (!card) {
+      return { success: false, message: 'Card not found' };
+    }
+    return card;
+  }
+
   @Delete(':address')
   removeByAddress(@Param('address') address: string) {
     return this.basecardsService.removeByAddress(address);

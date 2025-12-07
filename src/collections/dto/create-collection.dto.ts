@@ -5,10 +5,13 @@ export class CreateCollectionDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  collectorUserId: string;
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  collectorAddress: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  collectedCardId: string;
+  collectedAddress: string;
 }

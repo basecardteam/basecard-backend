@@ -92,6 +92,38 @@ Content-Type: image/png
 --boundary--
 
 
+### Create Basecard for Bob (Multipart)
+POST {{baseUrl}}/v1/basecards
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="nickname"
+
+Bob
+--boundary
+Content-Disposition: form-data; name="role"
+
+Designer
+--boundary
+Content-Disposition: form-data; name="bio"
+
+Hello BaseCard!, I'm Bob
+--boundary
+Content-Disposition: form-data; name="address"
+
+{{bobAddress}}
+--boundary
+Content-Disposition: form-data; name="socials"
+
+{"twitter": "@bob_twitter", "farcaster": "@bob.farcaster.eth"}
+--boundary
+Content-Disposition: form-data; name="profileImageFile"; filename="profile2.png"
+Content-Type: image/png
+
+< ./test/samples/profile2.png
+--boundary--
+
+
 ### Update Token ID
 PUT {{baseUrl}}/v1/basecards/basecard/{{aliceAddress}}
 Content-Type: application/json
@@ -107,28 +139,40 @@ DELETE {{baseUrl}}/v1/basecards/{{aliceAddress}}
 ### COLLECTION API
 ### ===========================================
 
-### Create Collection
+### Get User ID for Alice (Collector)
+# @name getAlice
+GET {{baseUrl}}/v1/users/address/{{aliceAddress}}
+
+### Get Card ID for Bob (Collected)
+# @name getBobCard
+GET {{baseUrl}}/v1/basecards/address/{{bobAddress}}
+
+### Create Collection (Alice collects Bob)
 POST {{baseUrl}}/v1/collections
 Content-Type: application/json
 
 {
-  "collectorUserId": "{{userId}}",
-  "collectedCardId": "{{cardId}}"
+  "collectorAddress": "{{aliceAddress}}",
+  "collectedAddress": "{{bobAddress}}"
 }
 
-### Get All Collections
-GET {{baseUrl}}/v1/collections
-
-### Get Collection by ID
-GET {{baseUrl}}/v1/collections/{{collectionId}}
-
-### Delete Collection
-DELETE {{baseUrl}}/v1/collections/{{collectionId}}
+### Create Collection (Bob collects Alice)
+POST {{baseUrl}}/v1/collections
 Content-Type: application/json
 
 {
-  "tokenId": 123
+  "collectorAddress": "{{bobAddress}}",
+  "collectedAddress": "{{aliceAddress}}"
 }
+
+### Get Alice's Collections
+GET {{baseUrl}}/v1/collections?address={{aliceAddress}}
+
+### Get Bob's Collections
+GET {{baseUrl}}/v1/collections?address={{bobAddress}}
+
+### Get Collections
+GET {{baseUrl}}/v1/collections
 
 ### ===========================================
 ### EVENTS API

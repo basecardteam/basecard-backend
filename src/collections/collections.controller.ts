@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { CollectionsService } from './collections.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
@@ -23,8 +24,8 @@ export class CollectionsController {
   }
 
   @Get()
-  findAll() {
-    return this.collectionsService.findAll();
+  findAll(@Query('address') address?: string) {
+    return this.collectionsService.findAll(address);
   }
 
   @Get(':id')
