@@ -19,8 +19,18 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apk add --no-cache curl
+# Install curl for healthcheck + fonts for image rendering
+RUN apk add --no-cache \
+    curl \
+    unzip \
+    fontconfig \
+    freetype \
+    ttf-dejavu \
+    && mkdir -p /usr/share/fonts/noto \
+    && curl -L -o /tmp/NotoSansCJK.ttc.zip https://github.com/googlefonts/noto-cjk/releases/download/Sans2.004/03_NotoSansCJK-OTC.zip \
+    && unzip -j /tmp/NotoSansCJK.ttc.zip "*.ttc" -d /usr/share/fonts/noto \
+    && rm /tmp/NotoSansCJK.ttc.zip \
+    && fc-cache -fv
 
 # Copy built assets and dependencies
 COPY --from=builder /app/dist ./dist
