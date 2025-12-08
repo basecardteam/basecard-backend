@@ -57,9 +57,6 @@ Content-Type: application/json
 ### BASECARD API
 ### ===========================================
 
-### Get All Basecards
-GET {{baseUrl}}/v1/basecards
-
 ### Create Basecard (Multipart)
 POST {{baseUrl}}/v1/basecards
 Content-Type: multipart/form-data; boundary=boundary
@@ -125,15 +122,25 @@ Content-Type: image/png
 
 
 ### Update Token ID
-PUT {{baseUrl}}/v1/basecards/basecard/{{aliceAddress}}
+PUT {{baseUrl}}/v1/basecards/{{aliceAddress}}
 Content-Type: application/json
 
 {
   "tokenId": 123
 }
 
-### Delete Basecard by Address
-DELETE {{baseUrl}}/v1/basecards/{{aliceAddress}}
+### Update Token ID
+PUT {{baseUrl}}/v1/basecards/{{bobAddress}}
+Content-Type: application/json
+
+{
+  "tokenId": 123
+}
+
+
+### Get All Basecards
+GET {{baseUrl}}/v1/basecards
+
 
 ### ===========================================
 ### COLLECTION API

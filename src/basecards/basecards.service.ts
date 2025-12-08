@@ -117,35 +117,33 @@ export class BasecardsService {
   ): Promise<{ imageURI: string; profileImage: string }> {
     let s3Key = '';
     try {
-      // A. Optimize Image for S3 (No Rounding, WebP)
-      const optimized = await this.imageService.optimizeImage(file.buffer);
+      // A. Parallel: Optimize image for S3 + Prepare image for NFT
+      const [optimized, preparedImage] = await Promise.all([
+        this.imageService.optimizeImage(file.buffer),
+        this.imageService.prepareProfileImage(file.buffer),
+      ]);
+
       s3Key = `profiles/${dto.address}/${Date.now()}-${file.originalname.split('.')[0]}.webp`;
 
-      const profileImageUrl = await this.s3Service.uploadFile(
-        Buffer.from(optimized.base64, 'base64'),
-        s3Key,
-        optimized.mimeType,
-      );
-
-      this.logger.log(`S3 Uploaded: ${profileImageUrl}`);
-
-      // B. Generate NFT PNG (Rounded)
+      // B. Parallel: Upload to S3 + Generate NFT PNG
       const profileData = {
         nickname: dto.nickname,
         role: dto.role,
         bio: dto.bio,
       };
 
-      const preparedImage = await this.imageService.prepareProfileImage(
-        file.buffer,
-      );
+      const [profileImageUrl, nftPngBuffer] = await Promise.all([
+        this.s3Service.uploadFile(
+          Buffer.from(optimized.base64, 'base64'),
+          s3Key,
+          optimized.mimeType,
+        ),
+        this.imageService.generateNftPng(profileData, preparedImage.dataUrl),
+      ]);
 
-      const nftPngBuffer = await this.imageService.generateNftPng(
-        profileData,
-        preparedImage.dataUrl,
-      );
+      this.logger.log(`S3 Uploaded: ${profileImageUrl}`);
 
-      // C. Upload NFT PNG to IPFS
+      // C. Upload NFT PNG to IPFS (depends on nftPngBuffer)
       const ipfsResult = await this.ipfsService.uploadFile(
         nftPngBuffer,
         `nft-${dto.address}-${Date.now()}.png`,
@@ -315,23 +313,20 @@ export class BasecardsService {
       throw new BadRequestException('Cannot delete minted card');
     }
 
-    // Best effort: Delete images from S3 and IPFS
+    // Best effort: Delete images from S3 and IPFS in parallel
     try {
+      // Extract S3 key from Supabase URL
+      let s3Key = '';
       if (user.profileImage) {
-        // Extract key from Supabase URL
-        // Format: .../storage/v1/object/public/basecard-assets/<key>
         const parts = user.profileImage.split('basecard-assets/');
         if (parts.length === 2) {
-          const s3Key = parts[1];
-          await this.s3Service.deleteFile(s3Key);
-          this.logger.log(`Deleted S3 file: ${s3Key}`);
+          s3Key = parts[1];
         }
       }
 
+      // Extract CID from IPFS URL
+      let cid = '';
       if (card && card.imageUri) {
-        // Extract CID from IPFS URL
-        // Format: https://ipfs.io/ipfs/<cid> or ipfs://<cid>
-        let cid = '';
         if (card.imageUri.startsWith('ipfs://')) {
           cid = card.imageUri.replace('ipfs://', '');
         } else {
@@ -340,12 +335,28 @@ export class BasecardsService {
             cid = parts[1];
           }
         }
-
-        if (cid) {
-          await this.ipfsService.deleteFile(cid);
-          this.logger.log(`Deleted IPFS file: ${cid}`);
-        }
       }
+
+      // Parallel deletion of S3 and IPFS files
+      const deletePromises: Promise<void>[] = [];
+
+      if (s3Key) {
+        deletePromises.push(
+          this.s3Service.deleteFile(s3Key).then(() => {
+            this.logger.log(`Deleted S3 file: ${s3Key}`);
+          }),
+        );
+      }
+
+      if (cid) {
+        deletePromises.push(
+          this.ipfsService.deleteFile(cid).then(() => {
+            this.logger.log(`Deleted IPFS file: ${cid}`);
+          }),
+        );
+      }
+
+      await Promise.all(deletePromises);
     } catch (error) {
       this.logger.warn('Failed to cleanup images during card deletion', error);
       // Continue with DB deletion even if image cleanup fails
