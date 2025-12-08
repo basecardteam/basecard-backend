@@ -32,6 +32,14 @@ export class BasecardsController {
     @UploadedFile() file: Express.Multer.File,
     @Body() createBasecardDto: CreateBasecardDto,
   ) {
+    // 디버깅용 로그
+    this.logger.debug('=== Received FormData ===');
+    this.logger.debug(`DTO: ${JSON.stringify(createBasecardDto, null, 2)}`);
+    this.logger.debug(
+      `File: ${file ? `${file.originalname} (${file.size} bytes)` : 'No file'}`,
+    );
+    this.logger.debug('=========================');
+
     this.logger.log(`Creating card for address: ${createBasecardDto.address}`);
 
     // Check if card exists to avoid unnecessary image processing

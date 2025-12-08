@@ -12,7 +12,11 @@ async function bootstrap() {
     logger: new CustomLogger(),
   });
 
-  app.enableCors();
+  app.enableCors({
+    origin: true, // 모든 origin 허용 (개발용), 프로덕션에서는 특정 도메인 지정
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+  });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.enableVersioning({
     type: VersioningType.URI,

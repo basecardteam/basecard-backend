@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsArray,
   IsObject,
+  MinLength,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -15,13 +16,17 @@ export class CreateBasecardDto {
   address: string;
 
   @ApiProperty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'nickname은 필수 항목입니다' })
+  @MinLength(1, { message: 'nickname은 비어있을 수 없습니다' })
   nickname: string;
 
   @ApiProperty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'role은 필수 항목입니다' })
+  @MinLength(1, { message: 'role은 비어있을 수 없습니다' })
   role: string;
 
   @ApiProperty()
