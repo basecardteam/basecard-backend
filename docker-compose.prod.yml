@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   basecard-backend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-jeongseup/basecard-backend}:latest
+    image: ghcr.io/basecardteam/basecard-backend:latest
     container_name: basecard-backend
     restart: always
     env_file:
