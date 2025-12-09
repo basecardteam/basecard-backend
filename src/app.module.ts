@@ -12,7 +12,6 @@ import { CollectionsModule } from './collections/collections.module';
 import { EventsModule } from './events/events.module';
 import { LoggingMiddleware } from './common/middleware/logging.middleware';
 import { HealthModule } from './health/health.module';
-import { DeployModule } from './deploy/deploy.module';
 
 @Module({
   imports: [
@@ -26,7 +25,6 @@ import { DeployModule } from './deploy/deploy.module';
     CollectionsModule,
     EventsModule,
     HealthModule,
-    DeployModule,
   ],
   controllers: [AppController],
   providers: [AppService],
