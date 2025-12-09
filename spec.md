@@ -442,7 +442,44 @@ Retrieves the point history for a specific user.
 
 ---
 
-## 5. Quests
+## 5. User Quests
+
+### Get All User Quests
+
+Retrieves all user quest records with user and quest details.
+
+- **URL**: `/user-quests`
+- **Method**: `GET`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "result": [
+      {
+        "id": "uuid-string",
+        "userId": "uuid-string",
+        "questId": "uuid-string",
+        "status": "pending",
+        "completedAt": null,
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "user": {
+          "id": "uuid-string",
+          "walletAddress": "0x123..."
+        },
+        "quest": {
+          "id": "uuid-string",
+          "title": "Mint your BaseCard",
+          "actionType": "MINT"
+        }
+      }
+    ],
+    "error": null
+  }
+  ```
+
+---
+
+## 6. Quests
 
 ### Get All Quests
 

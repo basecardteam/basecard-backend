@@ -25,11 +25,12 @@ RUN apk add --no-cache \
     unzip \
     fontconfig \
     freetype \
-    ttf-dejavu \
-    && mkdir -p /usr/share/fonts/noto \
-    && curl -L -o /tmp/NotoSansCJK.ttc.zip https://github.com/googlefonts/noto-cjk/releases/download/Sans2.004/03_NotoSansCJK-OTC.zip \
-    && unzip -j /tmp/NotoSansCJK.ttc.zip "*.ttc" -d /usr/share/fonts/noto \
-    && rm /tmp/NotoSansCJK.ttc.zip \
+    && mkdir -p /usr/share/fonts/k2d
+
+# Copy and install K2D font from local zip file
+COPY K2D.zip /tmp/K2D.zip
+RUN unzip -j /tmp/K2D.zip "*.ttf" -d /usr/share/fonts/k2d \
+    && rm /tmp/K2D.zip \
     && fc-cache -fv
 
 # Copy built assets and dependencies

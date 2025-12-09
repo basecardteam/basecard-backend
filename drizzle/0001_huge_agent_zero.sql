@@ -1,0 +1,1 @@
+ALTER TYPE "public"."quest_status" ADD VALUE 'claimable' BEFORE 'completed';

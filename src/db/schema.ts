@@ -122,6 +122,7 @@ export const quests = pgTable('quests', {
 
 export const userQuestStatusEnum = pgEnum('quest_status', [
   'pending',
+  'claimable',
   'completed',
 ]);
 

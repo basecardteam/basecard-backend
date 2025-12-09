@@ -154,7 +154,9 @@ export class BasecardsService {
         throw new Error(`IPFS upload failed: ${ipfsResult.error}`);
       }
       const nftUri = `ipfs://${ipfsResult.cid}`;
+      const gatewayUrl = `https://ipfs.io/ipfs/${ipfsResult.cid}`;
       this.logger.log(`IPFS Uploaded: ${nftUri}`);
+      this.logger.log(`IPFS Gateway: ${gatewayUrl}`);
 
       return {
         imageURI: nftUri,

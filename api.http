@@ -206,8 +206,21 @@ Content-Type: application/json
 GET {{baseUrl}}/v1/events
 
 ### ===========================================
+### User Quests (user_quests table)
+### ===========================================
+
+### Get All User Quests
+GET {{baseUrl}}/v1/user-quests
+
+### ===========================================
 ### Quests
 ### ===========================================
+
+### Get Quests for Alice (includes user completion status)
+GET {{baseUrl}}/v1/quests/user/{{aliceAddress}}
+
+### Get Quests for Bob (includes user completion status)
+GET {{baseUrl}}/v1/quests/user/{{bobAddress}}
 
 ### Create Quest
 POST {{baseUrl}}/v1/quests

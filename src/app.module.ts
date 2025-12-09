@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { BasecardsModule } from './basecards/basecards.module';
 import { EarnModule } from './earn/earn.module';
 import { QuestsModule } from './quests/quests.module';
+import { UserQuestsModule } from './user-quests/user-quests.module';
 import { CollectionsModule } from './collections/collections.module';
 import { EventsModule } from './events/events.module';
 import { LoggingMiddleware } from './common/middleware/logging.middleware';
@@ -23,6 +24,7 @@ import { AppConfigModule } from './config/config.module';
     BasecardsModule,
     EarnModule,
     QuestsModule,
+    UserQuestsModule,
     CollectionsModule,
     EventsModule,
     HealthModule,

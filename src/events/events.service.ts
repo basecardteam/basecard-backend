@@ -11,7 +11,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateEventDto } from './dto/create-event.dto';
 import { BasecardsService } from '../basecards/basecards.service';
 import { UsersService } from '../users/users.service';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import {
   createPublicClient,
   http,
@@ -205,29 +205,35 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       event.transactionHash,
     );
 
-    // Increase User Points (Mint Quest Reward)
+    // Mark MINT quest as claimable
     try {
-      const mintQuest = await this.db.query.quests.findFirst({
-        where: eq(schema.quests.actionType, 'MINT'),
+      const user = await this.db.query.users.findFirst({
+        where: eq(schema.users.walletAddress, args.user.toLowerCase()),
       });
 
-      if (mintQuest) {
-        await this.usersService.increasePoints(
-          args.user,
-          mintQuest.rewardAmount,
-          'QUEST_REWARD',
-          mintQuest.id,
-          event.id,
-        );
-        this.logger.log(
-          `Increased points for user ${args.user} by ${mintQuest.rewardAmount}`,
-        );
-      } else {
-        this.logger.warn('Mint quest not found, skipping point increase');
+      if (user) {
+        const mintQuest = await this.db.query.quests.findFirst({
+          where: eq(schema.quests.actionType, 'MINT'),
+        });
+
+        if (mintQuest) {
+          await this.db
+            .update(schema.userQuests)
+            .set({ status: 'claimable' })
+            .where(
+              and(
+                eq(schema.userQuests.userId, user.id),
+                eq(schema.userQuests.questId, mintQuest.id),
+              ),
+            );
+          this.logger.log(
+            `MINT quest marked as claimable for user ${args.user}`,
+          );
+        }
       }
     } catch (error) {
       this.logger.error(
-        `Failed to increase points for user ${args.user}`,
+        `Failed to update quest status for user ${args.user}`,
         error,
       );
     }
