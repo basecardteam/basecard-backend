@@ -9,32 +9,17 @@ services:
     image: ghcr.io/basecardteam/basecard-backend:latest
     container_name: basecard-backend
     restart: always
+    ports:
+      - "${PORT:-4000}:${PORT:-4000}"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-4000}
     logging: *default-logging
-    networks:
-      - backend-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 15s
-
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: basecard-backend-tunnel
-    restart: always
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-    logging: *default-logging
-    networks:
-      - backend-network
-
-networks:
-  backend-network:
-    driver: bridge
