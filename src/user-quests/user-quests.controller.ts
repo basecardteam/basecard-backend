@@ -1,6 +1,7 @@
-import { Controller, Get, Logger } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserQuestsService } from './user-quests.service';
+import { ClaimQuestDto } from '../quests/dto/claim-quest.dto';
 
 @ApiTags('user-quests')
 @Controller('user-quests')
@@ -9,13 +10,26 @@ export class UserQuestsController {
 
   constructor(private readonly userQuestsService: UserQuestsService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Get all user quest records' })
+  @Get('user/:address')
+  @ApiOperation({ summary: 'Get all quests with user status' })
   @ApiResponse({
     status: 200,
-    description: 'List of all user quest records with user and quest details',
+    description: 'List of quests with user completion status',
   })
-  findAll() {
-    return this.userQuestsService.findAll();
+  async findAllForUser(@Param('address') address: string) {
+    return this.userQuestsService.findAllForUser(address);
+  }
+
+  @Post('claim')
+  @ApiOperation({ summary: 'Claim quest reward after on-chain verification' })
+  @ApiResponse({
+    status: 200,
+    description: 'Quest claim result with verification status and points',
+  })
+  async claimQuest(@Body() claimQuestDto: ClaimQuestDto) {
+    this.logger.log(
+      `Claim quest request: ${claimQuestDto.address} - ${claimQuestDto.questId}`,
+    );
+    return this.userQuestsService.claimQuest(claimQuestDto);
   }
 }

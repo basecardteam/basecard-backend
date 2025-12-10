@@ -14,6 +14,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { S3Service } from '../common/services/s3.service';
 import { IpfsService } from '../common/services/ipfs.service';
 import { ImageService } from '../common/services/image.service';
+import { EvmLib } from '../common/libs/evm.lib';
 
 @Injectable()
 export class BasecardsService {
@@ -24,17 +25,11 @@ export class BasecardsService {
     private s3Service: S3Service,
     private ipfsService: IpfsService,
     private imageService: ImageService,
+    private evmLib: EvmLib,
   ) {}
 
   async checkHasMinted(address: string): Promise<boolean> {
-    // TODO: Implement contract check
-    // const { data: hasMinted } = useReadContract({
-    //     address: BASECARD_CONTRACT_ADDRESS,
-    //     abi: baseCardAbi,
-    //     functionName: "hasMinted",
-    //     args: userAddress ? [userAddress] : undefined,
-    // });
-    return false;
+    return this.evmLib.getHasMinted(address);
   }
 
   async create(

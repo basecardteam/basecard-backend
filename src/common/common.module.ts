@@ -5,10 +5,12 @@ import { ImageService } from './services/image.service';
 import { AppConfigService } from './configs/app-config.service';
 import { IpfsController } from './controllers/ipfs.controller';
 
+import { EvmLib } from './libs/evm.lib';
+
 @Global()
 @Module({
   controllers: [IpfsController],
-  providers: [IpfsService, S3Service, ImageService, AppConfigService],
-  exports: [IpfsService, S3Service, ImageService, AppConfigService],
+  providers: [IpfsService, S3Service, ImageService, AppConfigService, EvmLib],
+  exports: [IpfsService, S3Service, ImageService, AppConfigService, EvmLib],
 })
 export class CommonModule {}

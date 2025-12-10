@@ -10,11 +10,7 @@ export class ClaimQuestDto {
   @IsEthereumAddress()
   address: string;
 
-  @ApiProperty({
-    description: 'Quest action type to claim',
-    example: 'MINT',
-  })
   @IsNotEmpty()
   @IsString()
-  actionType: string;
+  questId: string;
 }

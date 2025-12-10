@@ -118,9 +118,7 @@ export class BasecardsController {
   @Get('address/:address')
   async findByAddress(@Param('address') address: string) {
     const card = await this.basecardsService.findByAddress(address);
-    if (!card) {
-      return { success: false, message: 'Card not found' };
-    }
+    // Return null if not found - interceptor will wrap it as { success: true, result: null }
     return card;
   }
 
