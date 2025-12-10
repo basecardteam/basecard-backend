@@ -16,7 +16,7 @@ services:
       - PORT=${PORT:-4000}
     logging: *default-logging
     networks:
-      - basecard-network
+      - backend-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 10s
@@ -26,18 +26,15 @@ services:
 
   tunnel:
     image: cloudflare/cloudflared:latest
-    container_name: basecard-tunnel
+    container_name: basecard-backend-tunnel
     restart: always
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     logging: *default-logging
     networks:
-      - basecard-network
-    depends_on:
-      basecard-backend:
-        condition: service_started
+      - backend-network
 
 networks:
-  basecard-network:
+  backend-network:
     driver: bridge
