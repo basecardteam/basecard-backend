@@ -184,13 +184,20 @@ export const contractEvents = pgTable(
     eventName: text('event_name').notNull(),
     args: jsonb('args').notNull(), // { user: "0x...", tokenId: 1 }
     processed: boolean('processed').default(false),
+
+    // TX Receipt Details
+    fromAddress: text('from_address'), // tx sender
+    toAddress: text('to_address'), // contract address
+    gasUsed: text('gas_used'), // gas used (string for bigint)
+    effectiveGasPrice: text('effective_gas_price'),
+    txStatus: text('tx_status'), // 'success' or 'reverted'
+
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
-    // One transaction might have multiple events, but usually unique per log index.
-    // For simplicity, we index txHash.
     txHashIdx: index('contract_events_tx_hash_idx').on(table.transactionHash),
     blockHashIdx: index('contract_events_block_hash_idx').on(table.blockHash),
+    eventNameIdx: index('contract_events_event_name_idx').on(table.eventName),
   }),
 );
 

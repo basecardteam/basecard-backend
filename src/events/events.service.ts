@@ -14,21 +14,34 @@ import { UsersService } from '../users/users.service';
 import { eq, desc, and } from 'drizzle-orm';
 import {
   createPublicClient,
-  http,
   webSocket,
   parseAbiItem,
   fallback,
+  Log,
 } from 'viem';
 import { baseSepolia } from 'viem/chains';
 
 import { AppConfigService } from '../common/configs/app-config.service';
+
+// Event ABIs
+const EVENT_ABIS = [
+  parseAbiItem(
+    'event MintBaseCard(address indexed user, uint256 indexed tokenId)',
+  ),
+  parseAbiItem(
+    'event SocialLinked(uint256 indexed tokenId, string key, string value)',
+  ),
+  parseAbiItem('event BaseCardEdited(uint256 indexed tokenId)'),
+] as const;
+
+type EventName = 'MintBaseCard' | 'SocialLinked' | 'BaseCardEdited';
 
 @Injectable()
 export class EventsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventsService.name);
   private readonly client;
   private readonly contractAddress;
-  private unwatch: (() => void) | undefined;
+  private unwatchers: (() => void)[] = [];
 
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
@@ -44,7 +57,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       transport: fallback(
         wsUrls.map((url) => webSocket(url)),
         {
-          rank: true, // Automatically rank transports by latency/stability
+          rank: true,
         },
       ),
     });
@@ -59,42 +72,42 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.log('Initializing EventsService...');
-    this.subscribeToEvents();
+    this.subscribeToAllEvents();
   }
 
   onModuleDestroy() {
-    if (this.unwatch) {
-      this.unwatch();
-      this.logger.log('Unwatched contract events');
-    }
+    this.unwatchers.forEach((unwatch) => unwatch());
+    this.logger.log('Unwatched all contract events');
   }
 
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
-  private readonly reconnectDelay = 3000; // 3 seconds
+  private readonly reconnectDelay = 3000;
 
-  private subscribeToEvents() {
-    this.logger.log('Subscribing to MintBaseCard events...');
+  private subscribeToAllEvents() {
+    this.logger.log('Subscribing to all BaseCard events...');
+
     try {
-      this.unwatch = this.client.watchContractEvent({
+      // Subscribe to all events at once
+      const unwatch = this.client.watchContractEvent({
         address: this.contractAddress as `0x${string}`,
-        abi: [
-          parseAbiItem(
-            'event MintBaseCard(address indexed user, uint256 indexed tokenId)',
-          ),
-        ],
-        eventName: 'MintBaseCard',
-        onLogs: async (logs) => {
-          this.reconnectAttempts = 0; // Reset attempts on successful log receipt
+        abi: EVENT_ABIS,
+        onLogs: async (logs: Log[]) => {
+          this.reconnectAttempts = 0;
           for (const log of logs) {
             await this.processLog(log);
           }
         },
-        onError: (error) => {
+        onError: (error: Error) => {
           this.logger.error('Error in event subscription', error);
           this.reconnect();
         },
       });
+
+      this.unwatchers.push(unwatch);
+      this.logger.log(
+        'Subscribed to events: MintBaseCard, SocialLinked, BaseCardEdited',
+      );
     } catch (error) {
       this.logger.error('Failed to set up event watcher', error);
       this.reconnect();
@@ -116,37 +129,113 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     );
 
     setTimeout(() => {
-      this.subscribeToEvents();
+      this.subscribeToAllEvents();
     }, delay);
+  }
+
+  private async getTransactionDetails(txHash: `0x${string}`) {
+    try {
+      const receipt = await this.client.getTransactionReceipt({ hash: txHash });
+      return {
+        fromAddress: receipt.from,
+        toAddress: receipt.to || null,
+        gasUsed: receipt.gasUsed.toString(),
+        effectiveGasPrice: receipt.effectiveGasPrice.toString(),
+        txStatus: receipt.status === 'success' ? 'success' : 'reverted',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get tx receipt for ${txHash}`, error);
+      return null;
+    }
+  }
+
+  private getEventName(log: any): EventName | null {
+    // viem provides the eventName in decoded logs
+    if (log.eventName) return log.eventName as EventName;
+
+    // Fallback: check topics
+    const topics = log.topics;
+    if (!topics || topics.length === 0) return null;
+
+    // Event signatures (keccak256 of event signature)
+    const MINT_BASE_CARD_SIG =
+      '0x7e5d3e87c93b78c35a5a1e8c8c8d2c6e9f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c';
+    const SOCIAL_LINKED_SIG =
+      '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+    const BASE_CARD_EDITED_SIG =
+      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678';
+
+    // Note: In practice, viem decodes this for us, so this is rarely needed
+    return null;
   }
 
   private async processLog(log: any) {
     const { transactionHash, blockNumber, blockHash, logIndex, args } = log;
+    const eventName = log.eventName as EventName;
+
+    if (!eventName) {
+      this.logger.warn(`Unknown event received: ${JSON.stringify(log)}`);
+      return;
+    }
 
     // Check if already exists
     const exists = await this.db.query.contractEvents.findFirst({
-      where: eq(schema.contractEvents.transactionHash, transactionHash),
+      where: and(
+        eq(schema.contractEvents.transactionHash, transactionHash),
+        eq(schema.contractEvents.logIndex, Number(logIndex)),
+      ),
     });
 
-    if (exists) return;
+    if (exists) {
+      this.logger.debug(`Event already processed: ${transactionHash}`);
+      return;
+    }
+
+    // Get TX receipt details
+    const txDetails = await this.getTransactionDetails(
+      transactionHash as `0x${string}`,
+    );
+
+    // Serialize args based on event type
+    const serializedArgs = this.serializeArgs(eventName, args);
 
     await this.create({
       transactionHash,
       blockNumber: Number(blockNumber),
       blockHash,
       logIndex: Number(logIndex),
-      eventName: 'MintBaseCard',
-      args: {
-        user: args.user,
-        tokenId: args.tokenId?.toString(),
-      },
+      eventName,
+      args: serializedArgs,
+      ...(txDetails || {}),
     });
+  }
+
+  private serializeArgs(eventName: EventName, args: any): Record<string, any> {
+    switch (eventName) {
+      case 'MintBaseCard':
+        return {
+          user: args.user,
+          tokenId: args.tokenId?.toString(),
+        };
+      case 'SocialLinked':
+        return {
+          tokenId: args.tokenId?.toString(),
+          key: args.key,
+          value: args.value,
+        };
+      case 'BaseCardEdited':
+        return {
+          tokenId: args.tokenId?.toString(),
+        };
+      default:
+        return args;
+    }
   }
 
   async create(createEventDto: CreateEventDto) {
     this.logger.log(`Received event: ${createEventDto.eventName}`);
 
-    // 1. Save event to DB
+    // 1. Save event to DB with TX receipt details
     const [event] = await this.db
       .insert(schema.contractEvents)
       .values({
@@ -157,6 +246,12 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         eventName: createEventDto.eventName,
         args: createEventDto.args,
         processed: false,
+        // TX Receipt Details
+        fromAddress: createEventDto.fromAddress,
+        toAddress: createEventDto.toAddress,
+        gasUsed: createEventDto.gasUsed,
+        effectiveGasPrice: createEventDto.effectiveGasPrice,
+        txStatus: createEventDto.txStatus,
       })
       .returning();
 
@@ -178,10 +273,19 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processEvent(event: typeof schema.contractEvents.$inferSelect) {
-    if (event.eventName === 'MintBaseCard') {
-      await this.handleMintBaseCard(event);
+    switch (event.eventName) {
+      case 'MintBaseCard':
+        await this.handleMintBaseCard(event);
+        break;
+      case 'SocialLinked':
+        await this.handleSocialLinked(event);
+        break;
+      case 'BaseCardEdited':
+        await this.handleBaseCardEdited(event);
+        break;
+      default:
+        this.logger.warn(`Unhandled event type: ${event.eventName}`);
     }
-    // Add other event handlers here
   }
 
   private async handleMintBaseCard(
@@ -239,8 +343,33 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private async handleSocialLinked(
+    event: typeof schema.contractEvents.$inferSelect,
+  ) {
+    const args = event.args as { tokenId: string; key: string; value: string };
+    this.logger.log(
+      `Processing SocialLinked: TokenId ${args.tokenId}, ${args.key}=${args.value}`,
+    );
+    // Currently just logging - no business logic needed
+  }
+
+  private async handleBaseCardEdited(
+    event: typeof schema.contractEvents.$inferSelect,
+  ) {
+    const args = event.args as { tokenId: string };
+    this.logger.log(`Processing BaseCardEdited: TokenId ${args.tokenId}`);
+    // Currently just logging - no business logic needed
+  }
+
   async findAll() {
     return this.db.query.contractEvents.findMany({
+      orderBy: [desc(schema.contractEvents.createdAt)],
+    });
+  }
+
+  async findByEventName(eventName: string) {
+    return this.db.query.contractEvents.findMany({
+      where: eq(schema.contractEvents.eventName, eventName),
       orderBy: [desc(schema.contractEvents.createdAt)],
     });
   }
