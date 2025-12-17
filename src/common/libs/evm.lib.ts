@@ -77,4 +77,74 @@ export class EvmLib {
     const value = await this.getSocial(tokenId, key);
     return !!value && value.length > 0;
   }
+
+  /**
+   * Get card data from onchain tokenURI
+   * Parses the base64 encoded JSON metadata
+   */
+  async getCardData(tokenId: number): Promise<{
+    nickname: string;
+    role: string;
+    bio: string;
+    imageUri: string;
+    socials: { key: string; value: string }[];
+  } | null> {
+    try {
+      const tokenUri = await this.client.readContract({
+        address: this.contractAddress as `0x${string}`,
+        abi: parseAbi([
+          'function tokenURI(uint256 _tokenId) public view returns (string memory)',
+        ]),
+        functionName: 'tokenURI',
+        args: [BigInt(tokenId)],
+      });
+
+      // Parse the base64 encoded JSON
+      // Format: data:application/json;base64,{base64-encoded-json}
+      if (!tokenUri || typeof tokenUri !== 'string') {
+        return null;
+      }
+
+      const base64Prefix = 'data:application/json;base64,';
+      if (!tokenUri.startsWith(base64Prefix)) {
+        this.logger.warn(`Unexpected tokenURI format for token ${tokenId}`);
+        return null;
+      }
+
+      const base64Data = tokenUri.substring(base64Prefix.length);
+      const jsonString = Buffer.from(base64Data, 'base64').toString('utf-8');
+      const metadata = JSON.parse(jsonString);
+
+      return {
+        nickname: metadata.nickname || '',
+        role: metadata.role || '',
+        bio: metadata.bio || '',
+        imageUri: metadata.image || '',
+        socials: metadata.socials || [],
+      };
+    } catch (error) {
+      this.logger.error(`Error getting card data for token ${tokenId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get owner address of a token
+   */
+  async getOwnerOf(tokenId: number): Promise<string | null> {
+    try {
+      const owner = await this.client.readContract({
+        address: this.contractAddress as `0x${string}`,
+        abi: parseAbi([
+          'function ownerOf(uint256 tokenId) view returns (address)',
+        ]),
+        functionName: 'ownerOf',
+        args: [BigInt(tokenId)],
+      });
+      return owner as string;
+    } catch (error) {
+      this.logger.error(`Error getting owner for token ${tokenId}:`, error);
+      return null;
+    }
+  }
 }

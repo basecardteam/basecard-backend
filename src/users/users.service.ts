@@ -1,16 +1,23 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DRIZZLE } from '../db/db.module';
 import * as schema from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { EvmLib } from '../common/libs/evm.lib';
+import { BasecardsService } from '../basecards/basecards.service';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
+  constructor(
+    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
+    private evmLib: EvmLib,
+    @Inject(forwardRef(() => BasecardsService))
+    private basecardsService: BasecardsService,
+  ) {}
 
   async create(createUserDto: CreateUserDto) {
     // Check if user exists
@@ -20,6 +27,8 @@ export class UsersService {
 
     if (existing) {
       this.logger.debug(`User already exists: ${existing.id}`);
+      // Sync onchain data for existing user (in case event listener missed it)
+      await this.syncOnchainData(createUserDto.walletAddress);
       return existing;
     }
 
@@ -50,7 +59,61 @@ export class UsersService {
       );
     }
 
+    // Sync onchain data for new user (in case they already minted externally)
+    await this.syncOnchainData(createUserDto.walletAddress);
+
     return user;
+  }
+
+  /**
+   * Sync onchain data (tokenId, hasMintedCard) with DB
+   * This ensures DB stays in sync even if event listener missed events
+   */
+  private async syncOnchainData(address: string): Promise<void> {
+    try {
+      // 1. Check onchain tokenId
+      const tokenId = await this.evmLib.getTokenId(address);
+
+      if (!tokenId) {
+        // User hasn't minted yet, nothing to sync
+        return;
+      }
+
+      // 2. Check if DB already has this data
+      const user = await this.db.query.users.findFirst({
+        where: eq(schema.users.walletAddress, address),
+        with: { card: true },
+      });
+
+      if (!user) return;
+
+      // 3. If user has minted onchain but DB doesn't reflect it, sync
+      const needsSync = !user.hasMintedCard || !user.card?.tokenId;
+
+      if (needsSync) {
+        this.logger.log(
+          `Syncing onchain data for ${address}: tokenId=${tokenId}`,
+        );
+
+        // Update basecards table with tokenId
+        if (user.card && !user.card.tokenId) {
+          await this.basecardsService.updateTokenId(address, tokenId);
+        }
+
+        // Update user hasMintedCard if not set
+        if (!user.hasMintedCard) {
+          await this.db
+            .update(schema.users)
+            .set({ hasMintedCard: true })
+            .where(eq(schema.users.walletAddress, address));
+        }
+
+        this.logger.log(`Onchain sync completed for ${address}`);
+      }
+    } catch (error) {
+      // Don't fail the request if sync fails, just log
+      this.logger.warn(`Failed to sync onchain data for ${address}:`, error);
+    }
   }
 
   findAll() {

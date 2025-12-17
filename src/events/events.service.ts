@@ -22,6 +22,8 @@ import {
 import { baseSepolia } from 'viem/chains';
 
 import { AppConfigService } from '../common/configs/app-config.service';
+import { EvmLib } from '../common/libs/evm.lib';
+import { S3Service } from '../common/services/s3.service';
 
 // Event ABIs
 const EVENT_ABIS = [
@@ -48,6 +50,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     private basecardsService: BasecardsService,
     private appConfigService: AppConfigService,
     private usersService: UsersService,
+    private evmLib: EvmLib,
+    private s3Service: S3Service,
   ) {
     this.contractAddress = this.appConfigService.baseCardContractAddress;
     const wsUrls = this.appConfigService.baseWsRpcUrls;
@@ -149,32 +153,14 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private getEventName(log: any): EventName | null {
-    // viem provides the eventName in decoded logs
-    if (log.eventName) return log.eventName as EventName;
-
-    // Fallback: check topics
-    const topics = log.topics;
-    if (!topics || topics.length === 0) return null;
-
-    // Event signatures (keccak256 of event signature)
-    const MINT_BASE_CARD_SIG =
-      '0x7e5d3e87c93b78c35a5a1e8c8c8d2c6e9f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c';
-    const SOCIAL_LINKED_SIG =
-      '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-    const BASE_CARD_EDITED_SIG =
-      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678';
-
-    // Note: In practice, viem decodes this for us, so this is rarely needed
-    return null;
-  }
-
   private async processLog(log: any) {
     const { transactionHash, blockNumber, blockHash, logIndex, args } = log;
     const eventName = log.eventName as EventName;
 
     if (!eventName) {
-      this.logger.warn(`Unknown event received: ${JSON.stringify(log)}`);
+      this.logger.warn(
+        `Unknown event received: ${JSON.stringify(log, (_, v) => (typeof v === 'bigint' ? v.toString() : v))}`,
+      );
       return;
     }
 
@@ -353,12 +339,97 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     // Currently just logging - no business logic needed
   }
 
+  /**
+   * Phase 2: Sync onchain data to DB after contract editBaseCard call
+   */
   private async handleBaseCardEdited(
     event: typeof schema.contractEvents.$inferSelect,
   ) {
     const args = event.args as { tokenId: string };
-    this.logger.log(`Processing BaseCardEdited: TokenId ${args.tokenId}`);
-    // Currently just logging - no business logic needed
+    const tokenId = Number(args.tokenId);
+    this.logger.log(`Processing BaseCardEdited: TokenId ${tokenId}`);
+
+    try {
+      // 1. Get owner address from onchain
+      const ownerAddress = await this.evmLib.getOwnerOf(tokenId);
+      if (!ownerAddress) {
+        this.logger.error(`Could not find owner for token ${tokenId}`);
+        return;
+      }
+
+      // 2. Get latest card data from onchain
+      const onchainData = await this.evmLib.getCardData(tokenId);
+      if (!onchainData) {
+        this.logger.error(`Could not fetch card data for token ${tokenId}`);
+        return;
+      }
+
+      // 3. Find user in DB
+      const user = await this.db.query.users.findFirst({
+        where: eq(schema.users.walletAddress, ownerAddress),
+        with: { card: true },
+      });
+
+      if (!user) {
+        this.logger.warn(`User not found for address ${ownerAddress}`);
+        return;
+      }
+
+      if (!user.card) {
+        this.logger.warn(`Card not found for user ${ownerAddress}`);
+        return;
+      }
+
+      // 4. Convert socials array to object
+      const socialsObj: Record<string, string> = {};
+      if (onchainData.socials && Array.isArray(onchainData.socials)) {
+        for (const social of onchainData.socials) {
+          if (social.key && social.value) {
+            socialsObj[social.key] = social.value;
+          }
+        }
+      }
+
+      // 5. Update basecards table with onchain data
+      await this.db
+        .update(schema.basecards)
+        .set({
+          nickname: onchainData.nickname,
+          role: onchainData.role,
+          bio: onchainData.bio,
+          imageUri: onchainData.imageUri,
+          socials: socialsObj,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.basecards.id, user.card.id));
+
+      this.logger.log(
+        `Updated card ${user.card.id} with onchain data for token ${tokenId}`,
+      );
+
+      // 6. Update user profile image with latest S3 image
+      const latestProfileImage =
+        await this.s3Service.getLatestProfileImage(ownerAddress);
+
+      if (latestProfileImage && latestProfileImage !== user.profileImage) {
+        await this.db
+          .update(schema.users)
+          .set({
+            profileImage: latestProfileImage,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.users.id, user.id));
+
+        this.logger.log(
+          `Updated profile image for user ${ownerAddress}: ${latestProfileImage}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error processing BaseCardEdited for token ${tokenId}`,
+        error,
+      );
+    }
   }
 
   async findAll() {

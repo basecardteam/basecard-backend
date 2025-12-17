@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Logger, Param, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserQuestsService } from './user-quests.service';
-import { ClaimQuestDto } from '../quests/dto/claim-quest.dto';
+import { ClaimQuestDto, VerifyQuestDto } from '../quests/dto/claim-quest.dto';
 
 @ApiTags('user-quests')
 @Controller('user-quests')
@@ -18,6 +18,20 @@ export class UserQuestsController {
   })
   async findAllForUser(@Param('address') address: string) {
     return this.userQuestsService.findAllForUser(address);
+  }
+
+  @Post('verify')
+  @ApiOperation({ summary: 'Verify manual quest actions (Share, Follow, etc)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification result',
+  })
+  async verifyQuest(@Body() verifyQuestDto: VerifyQuestDto) {
+    this.logger.log(`Verify quest request: ${verifyQuestDto.address}`);
+    return this.userQuestsService.verifyAllUserQuests(
+      verifyQuestDto.address,
+      verifyQuestDto.fid,
+    );
   }
 
   @Post('claim')

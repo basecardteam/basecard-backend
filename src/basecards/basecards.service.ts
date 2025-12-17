@@ -230,6 +230,204 @@ export class BasecardsService {
     return updated;
   }
 
+  /**
+   * Phase 1: Process update request - upload images but DON'T update DB
+   * Returns data for contract call. DB update happens in event listener (Phase 2).
+   */
+  async processUpdate(
+    address: string,
+    updateData: {
+      nickname?: string;
+      role?: string;
+      bio?: string;
+      socials?: Record<string, string>;
+    },
+    file?: Express.Multer.File,
+  ): Promise<{
+    card_data: {
+      nickname: string;
+      role: string;
+      bio: string;
+      imageUri: string;
+    };
+    social_keys: string[];
+    social_values: string[];
+    // For rollback if tx rejected
+    uploadedFiles?: {
+      s3Key: string;
+      ipfsId: string;
+    };
+  }> {
+    // 1. Find existing card
+    const existingCard = await this.findByAddress(address);
+    if (!existingCard) {
+      throw new Error('Card not found for address');
+    }
+
+    // 2. Merge with existing data
+    const nickname = updateData.nickname || existingCard.nickname || '';
+    const role = updateData.role || existingCard.role || '';
+    const bio =
+      updateData.bio !== undefined ? updateData.bio : existingCard.bio || '';
+    const socials = updateData.socials || existingCard.socials || {};
+
+    // 3. Process image if provided
+    let imageUri = existingCard.imageUri || '';
+    let uploadedFiles: { s3Key: string; ipfsId: string } | undefined;
+
+    if (file) {
+      this.logger.log('Processing updated profile image...');
+      const result = await this.processUpdateImage(file, address, {
+        nickname,
+        role,
+        bio,
+      });
+      imageUri = result.imageURI;
+      uploadedFiles = {
+        s3Key: result.s3Key,
+        ipfsId: result.ipfsId,
+      };
+    }
+
+    // 4. Format response (same as create) - NO DB UPDATE
+    const socialKeys = Object.keys(socials);
+    const socialValues = Object.values(socials) as string[];
+
+    this.logger.log(`Prepared update for ${address} - awaiting contract call`);
+
+    return {
+      card_data: {
+        nickname,
+        role,
+        bio,
+        imageUri,
+      },
+      social_keys: socialKeys,
+      social_values: socialValues,
+      uploadedFiles,
+    };
+  }
+
+  /**
+   * Process image for update (S3 + IPFS upload, no DB update)
+   */
+  /**
+   * Process image for update (S3 + IPFS upload, no DB update)
+   */
+  private async processUpdateImage(
+    file: Express.Multer.File,
+    address: string,
+    profileData: { nickname: string; role: string; bio: string },
+  ): Promise<{
+    imageURI: string;
+    profileImage: string;
+    s3Key: string;
+    ipfsId: string;
+  }> {
+    let s3Key = '';
+    let ipfsId = '';
+    try {
+      // A. Parallel: Optimize image for S3 + Prepare image for NFT
+      const [optimized, preparedImage] = await Promise.all([
+        this.imageService.optimizeImage(file.buffer),
+        this.imageService.prepareProfileImage(file.buffer),
+      ]);
+
+      s3Key = `profiles/${address}/${Date.now()}-${file.originalname.split('.')[0]}.webp`;
+
+      // B. Parallel: Upload to S3 + Generate NFT PNG
+      const [profileImageUrl, nftPngBuffer] = await Promise.all([
+        this.s3Service.uploadFile(
+          Buffer.from(optimized.base64, 'base64'),
+          s3Key,
+          optimized.mimeType,
+        ),
+        this.imageService.generateNftPng(profileData, preparedImage.dataUrl),
+      ]);
+
+      this.logger.log(`S3 Uploaded (update): ${profileImageUrl}`);
+
+      // C. Upload NFT PNG to IPFS
+      const ipfsResult = await this.ipfsService.uploadFile(
+        nftPngBuffer,
+        `nft-${address}-${Date.now()}.png`,
+        'image/png',
+      );
+
+      if (!ipfsResult.success || !ipfsResult.cid || !ipfsResult.id) {
+        throw new Error(`IPFS upload failed: ${ipfsResult.error}`);
+      }
+      ipfsId = ipfsResult.id;
+      const nftUri = `ipfs://${ipfsResult.cid}`;
+      this.logger.log(`IPFS Uploaded (update): ${nftUri}`);
+
+      return {
+        imageURI: nftUri,
+        profileImage: profileImageUrl,
+        s3Key,
+        ipfsId,
+      };
+    } catch (error) {
+      this.logger.error('Processing update image failed', error);
+      // Cleanup on failure
+      if (s3Key) {
+        await this.s3Service.deleteFile(s3Key).catch(() => {});
+      }
+      if (ipfsId) {
+        await this.ipfsService.deleteFile(ipfsId).catch(() => {});
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Rollback uploaded files when transaction is rejected
+   */
+  async rollbackUpdate(uploadedFiles: {
+    s3Key: string;
+    ipfsId: string;
+  }): Promise<{ success: boolean }> {
+    this.logger.log('Rolling back uploaded files...');
+    const results: boolean[] = [];
+
+    if (uploadedFiles.s3Key) {
+      try {
+        await this.s3Service.deleteFile(uploadedFiles.s3Key);
+        this.logger.log(`S3 file deleted: ${uploadedFiles.s3Key}`);
+        results.push(true);
+      } catch (error) {
+        this.logger.error(
+          `Failed to delete S3 file: ${uploadedFiles.s3Key}`,
+          error,
+        );
+        results.push(false);
+      }
+    }
+
+    if (uploadedFiles.ipfsId) {
+      try {
+        const ipfsResult = await this.ipfsService.deleteFile(
+          uploadedFiles.ipfsId,
+        );
+        if (ipfsResult.success) {
+          this.logger.log(`IPFS file deleted: ${uploadedFiles.ipfsId}`);
+          results.push(true);
+        } else {
+          this.logger.error(`Failed to delete IPFS file: ${ipfsResult.error}`);
+          results.push(false);
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to delete IPFS file: ${uploadedFiles.ipfsId}`,
+          error,
+        );
+        results.push(false);
+      }
+    }
+
+    return { success: results.every((r) => r) };
+  }
+
   async updateTokenId(
     address: string,
     tokenId: number | null,

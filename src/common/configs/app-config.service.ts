@@ -90,4 +90,9 @@ export class AppConfigService implements OnModuleInit {
   get baseCardContractAddress(): string | undefined {
     return this.configService.get<string>('BASECARD_CONTRACT_ADDRESS');
   }
+
+  // Socials
+  get neynarApiKey(): string | undefined {
+    return this.configService.get<string>('NEYNAR_API_KEY');
+  }
 }

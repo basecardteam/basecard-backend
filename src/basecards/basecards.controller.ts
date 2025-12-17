@@ -98,12 +98,76 @@ export class BasecardsController {
     return this.basecardsService.findOne(id);
   }
 
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
+  /**
+   * Phase 1: Process update - upload images but DON'T update DB
+   * Returns data for contract call (editBaseCard)
+   */
+  @Patch(':address')
+  @UseInterceptors(FileInterceptor('profileImageFile'))
+  @ApiConsumes('multipart/form-data')
+  async processUpdate(
+    @Param('address') address: string,
+    @UploadedFile() file: Express.Multer.File,
     @Body() updateBasecardDto: UpdateBasecardDto,
   ) {
-    return this.basecardsService.update(id, updateBasecardDto);
+    this.logger.debug('=== Update Request ===');
+    this.logger.debug(`Address: ${address}`);
+    this.logger.debug(`DTO: ${JSON.stringify(updateBasecardDto, null, 2)}`);
+    this.logger.debug(
+      `File: ${file ? `${file.originalname} (${file.size} bytes)` : 'No file'}`,
+    );
+
+    try {
+      // Parse socials if it's a string (from FormData)
+      let socials = updateBasecardDto.socials;
+      if (typeof socials === 'string') {
+        try {
+          socials = JSON.parse(socials);
+        } catch {
+          this.logger.warn('Failed to parse socials JSON');
+        }
+      }
+
+      const result = await this.basecardsService.processUpdate(
+        address,
+        {
+          nickname: updateBasecardDto.nickname,
+          role: updateBasecardDto.role,
+          bio: updateBasecardDto.bio,
+          socials: socials as Record<string, string>,
+        },
+        file,
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error('Failed to process update', error);
+      throw new InternalServerErrorException(
+        error.message || 'Internal Server Error',
+      );
+    }
+  }
+
+  @Post(':address/rollback')
+  async rollbackUpdate(
+    @Param('address') address: string,
+    @Body() body: { s3Key: string; ipfsId: string },
+  ) {
+    this.logger.debug(`=== Rollback Request ===`);
+    this.logger.debug(`Address: ${address}`);
+    this.logger.debug(`S3 Key: ${body.s3Key}, IPFS ID: ${body.ipfsId}`);
+
+    try {
+      return await this.basecardsService.rollbackUpdate({
+        s3Key: body.s3Key,
+        ipfsId: body.ipfsId,
+      });
+    } catch (error) {
+      this.logger.error('Failed to rollback', error);
+      throw new InternalServerErrorException(
+        error.message || 'Rollback failed',
+      );
+    }
   }
 
   @Put(':address')

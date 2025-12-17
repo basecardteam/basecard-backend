@@ -121,6 +121,59 @@ Content-Type: image/png
 --boundary--
 
 
+### Update Basecard for Alice (Phase 1 - Prepare for Contract Call)
+# Returns { card_data, social_keys, social_values } for editBaseCard() contract call
+# DB is NOT updated - update happens after contract event
+PATCH {{baseUrl}}/v1/basecards/{{aliceAddress}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="nickname"
+
+Alice Updated
+--boundary
+Content-Disposition: form-data; name="role"
+
+Senior Developer
+--boundary
+Content-Disposition: form-data; name="bio"
+
+Hello BaseCard!, I'm Alice - Updated bio!
+--boundary
+Content-Disposition: form-data; name="socials"
+
+{"twitter": "@alice_twitter_new", "farcaster": "@alice.farcaster.eth", "github": "@alice-dev"}
+--boundary
+Content-Disposition: form-data; name="profileImageFile"; filename="profile1.png"
+Content-Type: image/png
+
+< ./test/samples/profile1.png
+--boundary--
+
+
+### Update Basecard for Bob (without image change)
+PATCH {{baseUrl}}/v1/basecards/{{bobAddress}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="nickname"
+
+Bob Updated
+--boundary
+Content-Disposition: form-data; name="role"
+
+Lead Designer
+--boundary
+Content-Disposition: form-data; name="bio"
+
+Updated bio for Bob
+--boundary
+Content-Disposition: form-data; name="socials"
+
+{"twitter": "@bob_twitter_new", "github": "@bob-design"}
+--boundary--
+
+
 ### Update Token ID
 PUT {{baseUrl}}/v1/basecards/{{aliceAddress}}
 Content-Type: application/json

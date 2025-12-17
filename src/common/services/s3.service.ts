@@ -117,4 +117,55 @@ export class S3Service {
       throw error;
     }
   }
+
+  /**
+   * Get the latest profile image URL for a given address
+   * Lists files in profiles/{address}/ and returns the most recent one
+   */
+  async getLatestProfileImage(address: string): Promise<string | null> {
+    try {
+      await this.initializationPromise;
+
+      if (!this.supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const folderPath = `profiles/${address}`;
+      const { data: files, error } = await this.supabase.storage
+        .from(this.bucketName)
+        .list(folderPath, {
+          limit: 100,
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
+
+      if (error) {
+        this.logger.error(`Error listing files in ${folderPath}`, error);
+        return null;
+      }
+
+      if (!files || files.length === 0) {
+        this.logger.debug(`No files found in ${folderPath}`);
+        return null;
+      }
+
+      // Get the most recent file (first in desc order)
+      const latestFile = files[0];
+      const key = `${folderPath}/${latestFile.name}`;
+
+      const { data: publicUrlData } = this.supabase.storage
+        .from(this.bucketName)
+        .getPublicUrl(key);
+
+      this.logger.debug(
+        `Latest profile image for ${address}: ${publicUrlData.publicUrl}`,
+      );
+      return publicUrlData.publicUrl;
+    } catch (error) {
+      this.logger.error(
+        `Error getting latest profile image for ${address}`,
+        error,
+      );
+      return null;
+    }
+  }
 }
