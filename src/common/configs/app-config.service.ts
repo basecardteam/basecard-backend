@@ -17,6 +17,7 @@ export class AppConfigService implements OnModuleInit {
       'PINATA_GROUP',
       'BASECARD_CONTRACT_ADDRESS',
       'BASE_WS_RPC_URLS',
+      'NEYNAR_API_KEY',
     ];
 
     const missingKeys = requiredKeys.filter(
