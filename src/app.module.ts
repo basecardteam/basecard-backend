@@ -14,6 +14,7 @@ import { EventsModule } from './events/events.module';
 import { LoggingMiddleware } from './common/middleware/logging.middleware';
 import { HealthModule } from './health/health.module';
 import { AppConfigModule } from './config/config.module';
+import { ImagesModule } from './images/images.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AppConfigModule } from './config/config.module';
     EventsModule,
     HealthModule,
     AppConfigModule,
+    ImagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
