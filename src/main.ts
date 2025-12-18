@@ -17,6 +17,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'https://miniapp-dev.basecard.org',
       'https://miniapp.basecard.org',
+      'https://miniapp-hwang.basecard.org',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
