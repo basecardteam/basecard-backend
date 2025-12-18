@@ -29,6 +29,7 @@
     "db:check": "ts-node scripts/check-db-connection.ts",
     "db:seed": "ts-node scripts/seed-quests.ts",
     "test:services": "ts-node scripts/test-services.ts",
+    "test:fetch-casts": "ts-node scripts/test-fetch-casts.ts",
     "docker:test": "./scripts/docker-local-test.sh"
   },
   "dependencies": {

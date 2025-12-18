@@ -41,7 +41,7 @@ export class UserQuestsService implements OnModuleInit {
    * Get all quests with user's completion status
    * Automatically updates status for on-chain verifiable quests
    */
-  async findAllForUser(address: string) {
+  async findAllForUser(address: string, fid?: number) {
     // Get user
     const user = await this.db.query.users.findFirst({
       where: eq(schema.users.walletAddress, address),
@@ -78,13 +78,30 @@ export class UserQuestsService implements OnModuleInit {
             address,
             user,
             quest.actionType,
+            { fid },
           );
 
           if (autoClaimable) {
+            this.logger.log(
+              `Auto-verified quest ${quest.actionType} for ${address}`,
+            );
             status = 'claimable';
-            // Optionally update DB to reflect claimable status to avoid re-checking every time?
-            // For now, we return calculated status, or we could insert 'claimable' record.
-            // Let's keep it calculated for simplicity or minimal DB writes until claim.
+
+            // Update DB to reflect claimable status to avoid re-checking every time
+            await this.db
+              .insert(schema.userQuests)
+              .values({
+                userId: user.id,
+                questId: quest.id,
+                status: 'claimable',
+              })
+              .onConflictDoUpdate({
+                target: [schema.userQuests.userId, schema.userQuests.questId],
+                set: {
+                  status: 'claimable',
+                },
+                where: eq(schema.userQuests.status, 'pending'),
+              });
           }
         }
 
@@ -103,13 +120,17 @@ export class UserQuestsService implements OnModuleInit {
     address: string,
     user: typeof schema.users.$inferSelect,
     actionType: string,
+    data: { fid?: number },
   ): Promise<boolean> {
     switch (actionType) {
       case 'MINT':
         if (user.hasMintedCard) return true;
         try {
           const hasMinted = await this.evmLib.getHasMinted(address);
-          if (hasMinted) return true;
+          if (hasMinted) {
+            this.logger.debug(`Auto-verified MINT for ${address}`);
+            return true;
+          }
         } catch (e) {
           return false;
         }
@@ -122,7 +143,7 @@ export class UserQuestsService implements OnModuleInit {
       case 'LINK_LINKEDIN':
       case 'LINK_BASENAME':
       case 'SHARE':
-        return this.verifyQuestCondition(address, actionType);
+        return this.verifyQuestCondition(address, actionType, data);
 
       case 'NOTIFICATION':
       case 'FOLLOW':

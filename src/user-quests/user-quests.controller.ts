@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Logger, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Logger,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserQuestsService } from './user-quests.service';
 import { ClaimQuestDto, VerifyQuestDto } from '../quests/dto/claim-quest.dto';
@@ -16,8 +24,11 @@ export class UserQuestsController {
     status: 200,
     description: 'List of quests with user completion status',
   })
-  async findAllForUser(@Param('address') address: string) {
-    return this.userQuestsService.findAllForUser(address);
+  async findAllForUser(
+    @Param('address') address: string,
+    @Query('fid') fid?: number,
+  ) {
+    return this.userQuestsService.findAllForUser(address, fid);
   }
 
   @Post('verify')
