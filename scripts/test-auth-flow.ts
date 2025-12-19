@@ -1,9 +1,10 @@
 import { privateKeyToAccount } from 'viem/accounts';
-import { generatePrivateKey } from 'viem/accounts';
 import axios from 'axios';
 
 async function main() {
-  const privateKey = generatePrivateKey();
+  // Fixed private key for testing
+  const privateKey =
+    '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
   const account = privateKeyToAccount(privateKey);
   const address = account.address;
   const message = 'Sign in to BaseCard';
@@ -13,7 +14,7 @@ async function main() {
   // 1. Sign Message
   const signature = await account.signMessage({ message });
 
-  const baseUrl = 'http://localhost:3000'; // Adjust port if needed
+  const baseUrl = 'http://localhost:4000/v1'; // Adjust port if needed
 
   try {
     // 2. Login
@@ -24,9 +25,12 @@ async function main() {
       signature,
     });
 
-    if (loginRes.status === 200 && loginRes.data.access_token) {
-      console.log('Login Successful! Token received.');
-      const token = loginRes.data.access_token;
+    if (
+      (loginRes.status === 200 || loginRes.status === 201) &&
+      loginRes.data.result?.access_token
+    ) {
+      const token = loginRes.data.result.access_token;
+      console.log(`Login Successful! Token received: ${token}`);
 
       // 3. Access Protected Route
       console.log('Accessing protected route with token...');

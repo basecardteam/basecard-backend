@@ -27,7 +27,6 @@ export const users = pgTable('users', {
 
   isNewUser: boolean('is_new_user').default(true),
   hasMintedCard: boolean('has_minted_card').default(false),
-  profileImage: text('profile_image').default('').notNull(), // Supabase Storage URL
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

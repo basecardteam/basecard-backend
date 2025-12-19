@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { AppModule } from './app/app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
-import { AppConfigService } from './common/configs/app-config.service';
-import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { CustomLogger } from './common/logger/custom.logger';
+import { AppConfigService } from './app/configs/app-config.service';
+import { TransformInterceptor } from './app/interceptors/transform.interceptor';
+import { HttpExceptionFilter } from './app/filters/http-exception.filter';
+import { CustomLogger } from './app/logger/custom.logger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
