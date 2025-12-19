@@ -69,10 +69,6 @@ export class AuthService {
   async loginOrRegister(address: string) {
     const safeAddress = address.toLowerCase();
     let user = await this.usersService.findByAddress(safeAddress);
-    const adminAddress = process.env.ADMIN_WALLET_ADDRESS;
-    const isAdmin =
-      adminAddress && address.toLowerCase() === adminAddress.toLowerCase();
-
     if (!user) {
       this.logger.log(`User not found for ${safeAddress}, creating new user.`);
       try {
@@ -89,13 +85,6 @@ export class AuthService {
         this.logger.error(`Failed to create user: ${e.message}`);
         throw new Error('Could not create user');
       }
-    } else {
-      // Update role if they are the admin in env but not in DB (handling promotion)
-      // if (isAdmin && user.role !== 'admin') {
-      //   await this.usersService.updateByAddress(address, { role: 'admin' });
-      //   user.role = 'admin';
-      // }
-      this.logger.log(`User found for ${safeAddress}, role: ${user.role}`);
     }
 
     if (!user) throw new Error('User retrieval failed during login');

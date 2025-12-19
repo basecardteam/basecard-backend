@@ -32,7 +32,7 @@ async function main() {
   // Split by comma if multiple addresses match
   const addressesToPromote = (ADMIN_WALLET_ADDRESSES as string)
     .split(',')
-    .map((addr) => addr.trim())
+    .map((addr) => addr.trim().toLowerCase())
     .filter((addr) => addr.length > 0);
 
   if (addressesToPromote.length === 0) {

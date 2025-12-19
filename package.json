@@ -30,7 +30,8 @@
     "db:seed": "ts-node scripts/seed-quests.ts",
     "test:services": "ts-node scripts/test-services.ts",
     "test:fetch-casts": "ts-node scripts/test-fetch-casts.ts",
-    "test:auth-flow": "ts-node scripts/test-auth-flow.ts",
+    "test:auth-flow-user": "ts-node scripts/test-auth-flow-user.ts",
+    "test:auth-flow-admin": "ts-node scripts/test-auth-flow-admin.ts",
     "add-admin-address": "ts-node scripts/add-admin.ts",
     "docker:test": "./scripts/docker-local-test.sh"
   },

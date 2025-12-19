@@ -48,6 +48,14 @@ export class AppConfigService implements OnModuleInit {
     );
   }
 
+  get isProduction(): boolean {
+    return this.configService.get<string>('NODE_ENV') === 'production';
+  }
+
+  get isDevelopment(): boolean {
+    return this.configService.get<string>('NODE_ENV') !== 'production';
+  }
+
   // Pinata
   get pinataJwt(): string | undefined {
     return this.configService.get<string>('PINATA_JWT');
