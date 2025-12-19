@@ -13,11 +13,14 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
+
 // --------------------------------------------------------------------------
 // 1. Users (Account)
 // --------------------------------------------------------------------------
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(), // UUID
+  role: userRoleEnum('role').default('user').notNull(),
   walletAddress: varchar('wallet_address', { length: 42 }).unique().notNull(),
 
   totalPoints: integer('total_points').default(0).notNull(),
