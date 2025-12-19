@@ -6,6 +6,7 @@ import { DbModule } from './db/db.module';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
 import { BasecardsModule } from './basecards/basecards.module';
+import { AuthModule } from './auth/auth.module';
 import { EarnModule } from './earn/earn.module';
 import { QuestsModule } from './quests/quests.module';
 import { UserQuestsModule } from './user-quests/user-quests.module';
@@ -31,6 +32,7 @@ import { ImagesModule } from './images/images.module';
     HealthModule,
     AppConfigModule,
     ImagesModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

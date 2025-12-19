@@ -6,12 +6,21 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { UserQuestsService } from './user-quests.service';
 import { ClaimQuestDto, VerifyQuestDto } from '../quests/dto/claim-quest.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('user-quests')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('user-quests')
 export class UserQuestsController {
   private readonly logger = new Logger(UserQuestsController.name);
