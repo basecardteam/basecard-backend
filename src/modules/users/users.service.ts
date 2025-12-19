@@ -118,7 +118,12 @@ export class UsersService {
     }
   }
 
-  findAll() {
+  findAll(role?: 'user' | 'admin') {
+    if (role) {
+      return this.db.query.users.findMany({
+        where: eq(schema.users.role, role),
+      });
+    }
     return this.db.query.users.findMany();
   }
 
