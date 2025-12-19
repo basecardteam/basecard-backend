@@ -57,12 +57,6 @@ async function seed() {
       actionType: 'LINK_FARCASTER',
     },
     {
-      title: 'Link Website',
-      description: 'Link your Website',
-      rewardAmount: 10,
-      actionType: 'LINK_WEBSITE',
-    },
-    {
       title: 'Link Github',
       description: 'Link your Github account',
       rewardAmount: 10,
