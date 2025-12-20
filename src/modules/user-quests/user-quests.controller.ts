@@ -3,10 +3,11 @@ import {
   Controller,
   Get,
   Logger,
-  Param,
   Post,
   Query,
   UseGuards,
+  Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,7 +16,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { UserQuestsService } from './user-quests.service';
-import { ClaimQuestDto, VerifyQuestDto } from '../quests/dto/claim-quest.dto';
+import { ClaimQuestDto } from '../quests/dto/claim-quest.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('user-quests')
@@ -27,40 +28,37 @@ export class UserQuestsController {
 
   constructor(private readonly userQuestsService: UserQuestsService) {}
 
-  @Get('user/:address')
-  @ApiOperation({ summary: 'Get all quests with user status' })
+  @Get('me')
+  @ApiOperation({ summary: 'Get all quests with current user status' })
   @ApiResponse({
     status: 200,
     description: 'List of quests with user completion status',
   })
-  async findAllForUser(
-    @Param('address') address: string,
-    @Query('fid') fid?: number,
-  ) {
-    return this.userQuestsService.findAllForUser(address, fid);
-  }
-
-  @Post('verify')
-  @ApiOperation({ summary: 'Verify manual quest actions (Share, Follow, etc)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Verification result',
-  })
-  async verifyQuest(@Body() verifyQuestDto: VerifyQuestDto) {
-    this.logger.log(`Verify quest request: ${verifyQuestDto.address}`);
-    return this.userQuestsService.verifyAllUserQuests(
-      verifyQuestDto.address,
-      verifyQuestDto.fid,
-    );
+  async findMyQuests(@Request() req: any, @Query('fid') fid?: number) {
+    const walletAddress = req.user?.walletAddress;
+    if (!walletAddress) {
+      throw new ForbiddenException('Wallet address not found in token');
+    }
+    return this.userQuestsService.findAllForUser(walletAddress, fid);
   }
 
   @Post('claim')
-  @ApiOperation({ summary: 'Claim quest reward after on-chain verification' })
+  @ApiOperation({ summary: 'Claim quest reward (only for current user)' })
   @ApiResponse({
     status: 200,
     description: 'Quest claim result with verification status and points',
   })
-  async claimQuest(@Body() claimQuestDto: ClaimQuestDto) {
+  async claimQuest(@Request() req: any, @Body() claimQuestDto: ClaimQuestDto) {
+    const walletAddress = req.user?.walletAddress;
+    if (!walletAddress) {
+      throw new ForbiddenException('Wallet address not found in token');
+    }
+
+    // Verify user can only claim their own quests
+    if (claimQuestDto.address.toLowerCase() !== walletAddress.toLowerCase()) {
+      throw new ForbiddenException('Cannot claim quests for other users');
+    }
+
     this.logger.log(
       `Claim quest request: ${claimQuestDto.address} - ${claimQuestDto.questId}`,
     );

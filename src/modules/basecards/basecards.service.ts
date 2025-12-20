@@ -139,11 +139,14 @@ export class BasecardsService {
     }
   }
 
-  async findAll() {
+  async findAll(limit: number = 50, offset: number = 0) {
     const cards = await this.db.query.basecards.findMany({
       with: {
         user: true,
       },
+      limit,
+      offset,
+      orderBy: (basecards, { desc }) => [desc(basecards.createdAt)],
     });
 
     return cards.map((card) => ({

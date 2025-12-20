@@ -113,19 +113,45 @@ export const pointLogs = pgTable('point_logs', {
 // --------------------------------------------------------------------------
 // 5. Quests
 // --------------------------------------------------------------------------
+export const platformEnum = pgEnum('platform', [
+  'FARCASTER',
+  'TWITTER',
+  'BASENAME',
+  'APP',
+  'GITHUB',
+  'LINKEDIN',
+  'WEBSITE',
+]);
+
+export const frequencyEnum = pgEnum('frequency', [
+  'ONCE',
+  'DAILY',
+  'WEEKLY',
+  'MONTHLY',
+  'ALWAYS',
+]);
+
 export const quests = pgTable('quests', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
   rewardAmount: integer('reward_amount').default(0).notNull(),
-  actionType: varchar('action_type', { length: 50 }).unique().notNull(),
+  // New structure: platform + actionType
+  platform: platformEnum('platform').notNull(),
+  actionType: varchar('action_type', { length: 50 }).notNull(),
+  // Frequency for recurring quests
+  frequency: frequencyEnum('frequency').default('ONCE').notNull(),
+  cooldownSecond: integer('cooldown_second'), // null = no cooldown
   isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const userQuestStatusEnum = pgEnum('quest_status', [
   'pending',
+  'submitted', // User submitted proof (URL/screenshot), awaiting admin review
   'claimable',
   'completed',
+  'rejected', // Admin rejected the submission
 ]);
 
 export const userQuests = pgTable(
@@ -139,6 +165,9 @@ export const userQuests = pgTable(
       .references(() => quests.id)
       .notNull(),
     status: userQuestStatusEnum('status').default('pending'),
+    // Metadata for user submissions (URL, screenshot link, etc.)
+    // Example: { "url": "https://...", "note": "My screenshot" }
+    metadata: jsonb('metadata'),
     completedAt: timestamp('completed_at'),
   },
   (table) => ({

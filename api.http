@@ -4,6 +4,37 @@
 @baseUrl = http://localhost:4000
 @aliceAddress = 0x1234567890123456789012345678901234567890
 @bobAddress = 0x2345678901234567890123456789012345678901
+@adminAddress = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+### Dev Token (bypasses auth - reads from .env)
+@devToken = {{$dotenv DEV_JWT_TOKEN}}
+
+### ===========================================
+### AUTH API (Admin)
+### ===========================================
+
+### Step 1: Get Auth Challenge for Admin
+# @name adminChallenge
+POST {{baseUrl}}/v1/auth/challenge
+Content-Type: application/json
+
+{
+  "walletAddress": "{{adminAddress}}"
+}
+
+### Step 2: Verify Admin (Use the nonce from step 1 to sign)
+# NOTE: Replace signature with actual wallet signature
+# @name adminVerify
+POST {{baseUrl}}/v1/auth/verify
+Content-Type: application/json
+
+{
+  "walletAddress": "{{adminAddress}}",
+  "signature": "YOUR_SIGNATURE_HERE"
+}
+
+### Store the JWT token from adminVerify response
+@adminToken = {{adminVerify.response.body.accessToken}}
 
 ### ===========================================
 ### USER API
@@ -266,8 +297,11 @@ GET {{baseUrl}}/v1/events
 GET {{baseUrl}}/v1/user-quests
 
 ### ===========================================
-### Quests
+### Quests (Public)
 ### ===========================================
+
+### Get Active Quests (Public - no auth required)
+GET {{baseUrl}}/v1/quests/active
 
 ### Get Quests for Alice (includes user completion status)
 GET {{baseUrl}}/v1/quests/user/{{aliceAddress}}
@@ -275,31 +309,111 @@ GET {{baseUrl}}/v1/quests/user/{{aliceAddress}}
 ### Get Quests for Bob (includes user completion status)
 GET {{baseUrl}}/v1/quests/user/{{bobAddress}}
 
-### Create Quest
+### ===========================================
+### ADMIN: Quest Management (Requires Auth)
+### ===========================================
+
+### Get Quest Types (platforms, actionTypes, frequencies)
+GET {{baseUrl}}/v1/quests/types
+Authorization: Bearer {{devToken}}
+
+### Get All Quests (Admin)
+GET {{baseUrl}}/v1/quests
+Authorization: Bearer {{devToken}}
+
+### Create Quest: Follow on Twitter (X_FOLLOW)
 POST {{baseUrl}}/v1/quests
 Content-Type: application/json
+Authorization: Bearer {{devToken}}
 
 {
-  "title": "New Quest",
-  "description": "Description of the new quest",
-  "rewardAmount": 100,
-  "actionType": "CUSTOM_ACTION"
+  "title": "Follow @basecardteam on Twitter",
+  "description": "Follow the official BaseCard Twitter account",
+  "platform": "TWITTER",
+  "actionType": "X_FOLLOW",
+  "frequency": "ONCE",
+  "rewardAmount": 100
 }
 
-### Get All Quests
-GET {{baseUrl}}/v1/quests
+### Create Quest: Follow on Farcaster (FC_FOLLOW)
+POST {{baseUrl}}/v1/quests
+Content-Type: application/json
+Authorization: Bearer {{devToken}}
+
+{
+  "title": "Follow @basecardteam on Farcaster",
+  "description": "Follow the official BaseCard Farcaster account",
+  "platform": "FARCASTER",
+  "actionType": "FC_FOLLOW",
+  "frequency": "ONCE",
+  "rewardAmount": 100
+}
+
+### Create Quest: Post with Hashtag (FC_POST_HASHTAG)
+POST {{baseUrl}}/v1/quests
+Content-Type: application/json
+Authorization: Bearer {{devToken}}
+
+{
+  "title": "Post #BaseCardAdvent",
+  "description": "Post on Farcaster with #BaseCardAdvent hashtag",
+  "platform": "FARCASTER",
+  "actionType": "FC_POST_HASHTAG",
+  "frequency": "ONCE",
+  "rewardAmount": 300
+}
+
+### Create Quest: Manual Screenshot Quest (APP_MANUAL)
+POST {{baseUrl}}/v1/quests
+Content-Type: application/json
+Authorization: Bearer {{devToken}}
+
+{
+  "title": "Share your BaseCard screenshot",
+  "description": "Take a screenshot of your BaseCard and share it. Submit the URL for admin review.",
+  "platform": "APP",
+  "actionType": "APP_MANUAL",
+  "frequency": "ONCE",
+  "rewardAmount": 500
+}
+
+### Create Quest: Daily Check-in (Daily)
+POST {{baseUrl}}/v1/quests
+Content-Type: application/json
+Authorization: Bearer {{devToken}}
+
+{
+  "title": "Daily Check-in",
+  "description": "Check in daily to earn points",
+  "platform": "APP",
+  "actionType": "APP_DAILY_CHECKIN",
+  "frequency": "DAILY",
+  "cooldownSecond": 86400,
+  "rewardAmount": 50
+}
 
 ### Get Quest by ID
-@questId = {{baseUrl}}/v1/quests
+@questId = 1b4b3609-3e64-4b26-841a-2209aa5e1134
 GET {{baseUrl}}/v1/quests/{{questId}}
+Authorization: Bearer {{devToken}}
 
 ### Update Quest
 PATCH {{baseUrl}}/v1/quests/{{questId}}
 Content-Type: application/json
+Authorization: Bearer {{devToken}}
 
 {
   "rewardAmount": 150
 }
 
+### Activate Quest
+PATCH {{baseUrl}}/v1/quests/{{questId}}/activate
+Authorization: Bearer {{devToken}}
+
+### Deactivate Quest
+PATCH {{baseUrl}}/v1/quests/{{questId}}/deactivate
+Authorization: Bearer {{devToken}}
+
 ### Delete Quest
 DELETE {{baseUrl}}/v1/quests/{{questId}}
+Authorization: Bearer {{devToken}}
