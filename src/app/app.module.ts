@@ -15,6 +15,7 @@ import { AppConfigModule } from '../modules/config/config.module';
 import { ImagesModule } from '../modules/images/images.module';
 import { IpfsModule } from '../modules/ipfs/ipfs.module';
 import { BlockchainModule } from '../modules/blockchain/blockchain.module';
+import { QuestVerificationModule } from '../modules/quest-verification/quest-verification.module';
 // middleware
 import { LoggingMiddleware } from './middleware/logging.middleware';
 
@@ -35,6 +36,7 @@ import { LoggingMiddleware } from './middleware/logging.middleware';
     ImagesModule,
     IpfsModule,
     BlockchainModule,
+    QuestVerificationModule,
     AuthModule,
   ],
 })

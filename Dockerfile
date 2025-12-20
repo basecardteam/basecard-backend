@@ -28,7 +28,7 @@ RUN apk add --no-cache \
     && mkdir -p /usr/share/fonts/k2d
 
 # Copy and install K2D font from local zip file
-COPY /app/src/common/assets/K2D.zip /tmp/K2D.zip
+COPY K2D.zip /tmp/K2D.zip
 RUN unzip -j /tmp/K2D.zip "*.ttf" -d /usr/share/fonts/k2d \
     && rm /tmp/K2D.zip \
     && fc-cache -fv
