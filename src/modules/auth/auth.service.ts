@@ -1,47 +1,90 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { verifyMessage } from 'viem';
-import * as jwt from 'jsonwebtoken';
+import { Errors, createClient } from '@farcaster/quick-auth';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly farcasterClient = createClient();
 
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   /**
-   * Validates Farcaster Token and returns the simplified payload.
-   * WARN: This currently assumes trusting the decoded JWT or needs a provided secret.
-   * In a real app, verify against Farcaster public keys.
+   * Validates Farcaster Quick Auth token and returns the user's primary Ethereum address.
+   * Uses @farcaster/quick-auth library for secure JWT verification.
    */
-  async validateFarcasterToken(token: string): Promise<{ address: string }> {
+  async validateFarcasterToken(
+    token: string,
+  ): Promise<{ address: string; fid: number }> {
     try {
-      const decoded: any = jwt.decode(token);
-      if (!decoded) throw new Error('Token decode failed');
+      // Verify JWT using Farcaster Quick Auth
+      const domain = this.configService.get<string>(
+        'FARCASTER_DOMAIN',
+        'miniapp.basecard.org',
+      );
+      const payload = await this.farcasterClient.verifyJwt({
+        token,
+        domain,
+      });
 
-      this.logger.debug(`Farcaster Auth Debug: ${JSON.stringify(decoded)}`);
+      this.logger.debug(`Farcaster Auth Debug: FID=${payload.sub}`);
 
-      // Attempt to find a usable address
-      // Structure varies by Farcaster Auth version, but typically checks:
-      // 'custody_address', 'verifications' array, or 'verified_addresses'
-      const address =
-        decoded.custody_address ||
-        (decoded.verifications && decoded.verifications[0]) ||
-        (decoded.verified_addresses && decoded.verified_addresses[0]) ||
-        decoded.address; // Fallback
+      // Fetch primary Ethereum address for the FID
+      const address = await this.resolvePrimaryAddress(payload.sub);
 
       if (!address) {
-        throw new Error('No address found in Farcaster token');
+        throw new Error('No primary address found for FID');
       }
 
-      return { address };
+      return { address, fid: payload.sub };
     } catch (e) {
+      if (e instanceof Errors.InvalidTokenError) {
+        this.logger.error(`Farcaster token invalid: ${e.message}`);
+        throw new UnauthorizedException('Invalid Farcaster token');
+      }
       this.logger.error(`Farcaster validation failed: ${e.message}`);
-      throw new UnauthorizedException('Invalid Farcaster token');
+      throw new UnauthorizedException('Farcaster authentication failed');
+    }
+  }
+
+  /**
+   * Resolves the primary Ethereum address for a Farcaster FID.
+   */
+  private async resolvePrimaryAddress(
+    fid: number,
+  ): Promise<string | undefined> {
+    try {
+      const res = await fetch(
+        `https://api.farcaster.xyz/fc/primary-address?fid=${fid}&protocol=ethereum`,
+      );
+
+      if (res.ok) {
+        const { result } = (await res.json()) as {
+          result: {
+            address: {
+              fid: number;
+              protocol: 'ethereum' | 'solana';
+              address: string;
+            };
+          };
+        };
+        return result.address.address;
+      }
+
+      this.logger.warn(
+        `Failed to fetch primary address for FID ${fid}: ${res.status}`,
+      );
+      return undefined;
+    } catch (e) {
+      this.logger.error(`Error fetching primary address: ${e.message}`);
+      return undefined;
     }
   }
 
