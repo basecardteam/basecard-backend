@@ -15,6 +15,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
+      'http://localhost:5000',
       'https://miniapp-dev.basecard.org',
       'https://miniapp.basecard.org',
       'https://miniapp-hwang.basecard.org',

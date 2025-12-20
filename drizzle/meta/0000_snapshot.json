@@ -1,5 +1,5 @@
 {
-  "id": "9b399596-8471-4677-8d8e-56194ee579f6",
+  "id": "844a70d2-3683-442b-bae5-8380c5c689f3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -253,6 +253,36 @@
           "notNull": false,
           "default": false
         },
+        "from_address": {
+          "name": "from_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_address": {
+          "name": "to_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gas_used": {
+          "name": "gas_used",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "effective_gas_price": {
+          "name": "effective_gas_price",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tx_status": {
+          "name": "tx_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -282,6 +312,21 @@
           "columns": [
             {
               "expression": "block_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "contract_events_event_name_idx": {
+          "name": "contract_events_event_name_idx",
+          "columns": [
+            {
+              "expression": "event_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -508,11 +553,32 @@
           "notNull": true,
           "default": 0
         },
+        "platform": {
+          "name": "platform",
+          "type": "platform",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
         "action_type": {
           "name": "action_type",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
+        },
+        "frequency": {
+          "name": "frequency",
+          "type": "frequency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ONCE'"
+        },
+        "cooldown_second": {
+          "name": "cooldown_second",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "is_active": {
           "name": "is_active",
@@ -520,20 +586,19 @@
           "primaryKey": false,
           "notNull": false,
           "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "quests_action_type_unique": {
-          "name": "quests_action_type_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "action_type"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -568,6 +633,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'pending'"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "completed_at": {
           "name": "completed_at",
@@ -631,6 +702,14 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'user'"
+        },
         "wallet_address": {
           "name": "wallet_address",
           "type": "varchar(42)",
@@ -657,13 +736,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": false
-        },
-        "profile_image": {
-          "name": "profile_image",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
         },
         "created_at": {
           "name": "created_at",
@@ -707,6 +779,30 @@
         "hiring"
       ]
     },
+    "public.frequency": {
+      "name": "frequency",
+      "schema": "public",
+      "values": [
+        "ONCE",
+        "DAILY",
+        "WEEKLY",
+        "MONTHLY",
+        "ALWAYS"
+      ]
+    },
+    "public.platform": {
+      "name": "platform",
+      "schema": "public",
+      "values": [
+        "FARCASTER",
+        "TWITTER",
+        "BASENAME",
+        "APP",
+        "GITHUB",
+        "LINKEDIN",
+        "WEBSITE"
+      ]
+    },
     "public.point_log_type": {
       "name": "point_log_type",
       "schema": "public",
@@ -722,7 +818,18 @@
       "schema": "public",
       "values": [
         "pending",
-        "completed"
+        "submitted",
+        "claimable",
+        "completed",
+        "rejected"
+      ]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": [
+        "user",
+        "admin"
       ]
     }
   },

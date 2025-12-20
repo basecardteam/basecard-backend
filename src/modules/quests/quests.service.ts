@@ -1,9 +1,9 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, ConflictException } from '@nestjs/common';
 import { CreateQuestDto } from './dto/create-quest.dto';
 import { UpdateQuestDto } from './dto/update-quest.dto';
 import { DRIZZLE } from '../../db/db.module';
 import * as schema from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 @Injectable()
@@ -13,13 +13,30 @@ export class QuestsService {
   constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
 
   async create(createQuestDto: CreateQuestDto) {
+    // Check if quest with same platform + actionType already exists
+    const existing = await this.db.query.quests.findFirst({
+      where: and(
+        eq(schema.quests.platform, createQuestDto.platform),
+        eq(schema.quests.actionType, createQuestDto.actionType),
+      ),
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        `Quest with platform '${createQuestDto.platform}' and actionType '${createQuestDto.actionType}' already exists`,
+      );
+    }
+
     const [quest] = await this.db
       .insert(schema.quests)
       .values({
         title: createQuestDto.title,
         description: createQuestDto.description,
-        rewardAmount: createQuestDto.rewardAmount,
+        platform: createQuestDto.platform,
         actionType: createQuestDto.actionType,
+        frequency: createQuestDto.frequency,
+        cooldownSecond: createQuestDto.cooldownSecond,
+        rewardAmount: createQuestDto.rewardAmount,
       })
       .returning();
     return quest;
@@ -27,7 +44,17 @@ export class QuestsService {
 
   findAll() {
     return this.db.query.quests.findMany({
-      orderBy: (quests, { asc }) => [asc(quests.title)],
+      orderBy: (quests, { desc }) => [desc(quests.createdAt)],
+    });
+  }
+
+  /**
+   * Get all active quests (for public access)
+   */
+  findAllActive() {
+    return this.db.query.quests.findMany({
+      where: eq(schema.quests.isActive, true),
+      orderBy: (quests, { desc }) => [desc(quests.createdAt)],
     });
   }
 
@@ -43,6 +70,18 @@ export class QuestsService {
       .set({
         ...updateQuestDto,
       })
+      .where(eq(schema.quests.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Set quest active status
+   */
+  async setActive(id: string, isActive: boolean) {
+    const [updated] = await this.db
+      .update(schema.quests)
+      .set({ isActive })
       .where(eq(schema.quests.id, id))
       .returning();
     return updated;

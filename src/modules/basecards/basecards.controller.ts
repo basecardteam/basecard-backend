@@ -12,13 +12,23 @@ import {
   UploadedFile,
   InternalServerErrorException,
   BadRequestException,
+  UseGuards,
+  SetMetadata,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes } from '@nestjs/swagger';
+import { ApiConsumes, ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BasecardsService } from './basecards.service';
 import { CreateBasecardDto } from './dto/create-basecard.dto';
 import { UpdateBasecardDto } from './dto/update-basecard.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+// Public decorator to bypass auth
+const Public = () => SetMetadata('isPublic', true);
+
+@ApiTags('basecards')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('basecards')
 export class BasecardsController {
   private readonly logger = new Logger(BasecardsController.name);
@@ -88,9 +98,12 @@ export class BasecardsController {
     }
   }
 
+  @Public()
   @Get()
-  findAll() {
-    return this.basecardsService.findAll();
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  findAll(@Query('limit') limit?: number, @Query('offset') offset?: number) {
+    return this.basecardsService.findAll(limit ?? 50, offset ?? 0);
   }
 
   @Get(':id')
