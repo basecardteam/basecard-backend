@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 class ContractConfigDto {
   contractAddress: string;
   chainId: number;
+  ipfsGatewayUrl: string;
 }
 
 @Controller('config')
@@ -15,7 +16,8 @@ export class ConfigController {
   @Get()
   @ApiOperation({
     summary: 'Get contract configuration',
-    description: 'Returns the current contract address and chain ID',
+    description:
+      'Returns the current contract address, chain ID, and IPFS gateway URL',
   })
   @ApiResponse({
     status: 200,
@@ -29,6 +31,10 @@ export class ConfigController {
         '',
       ),
       chainId: this.configService.get<number>('CHAIN_ID', 84532),
+      ipfsGatewayUrl: this.configService.get<string>(
+        'IPFS_GATEWAY_URL',
+        'https://ipfs.io/ipfs',
+      ),
     };
   }
 }

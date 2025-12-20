@@ -12,9 +12,11 @@ import {
   UploadedFile,
   InternalServerErrorException,
   BadRequestException,
+  ForbiddenException,
   UseGuards,
   SetMetadata,
   Query,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
@@ -35,20 +37,49 @@ export class BasecardsController {
 
   constructor(private readonly basecardsService: BasecardsService) {}
 
+  @Public()
+  @Get()
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  findAll(@Query('limit') limit?: number, @Query('offset') offset?: number) {
+    return this.basecardsService.findAll(limit ?? 50, offset ?? 0);
+  }
+
+  @Public()
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.basecardsService.findOne(id);
+  }
+
+  @Get('me')
+  async findMyCard(@Request() req) {
+    const walletAddress = req.user?.walletAddress;
+    if (!walletAddress) {
+      throw new ForbiddenException('Wallet address not found in token');
+    }
+    const card = await this.basecardsService.findByAddress(walletAddress);
+    return card;
+  }
+
   @Post()
   @UseInterceptors(FileInterceptor('profileImageFile'))
   @ApiConsumes('multipart/form-data')
   async create(
     @UploadedFile() file: Express.Multer.File,
     @Body() createBasecardDto: CreateBasecardDto,
+    @Request() req,
   ) {
-    // 디버깅용 로그
-    this.logger.debug('=== Received FormData ===');
-    this.logger.debug(`DTO: ${JSON.stringify(createBasecardDto, null, 2)}`);
+    // 본인 확인
+    if (
+      req.user.walletAddress?.toLowerCase() !==
+      createBasecardDto.address.toLowerCase()
+    ) {
+      throw new ForbiddenException('You can only create your own card');
+    }
+
     this.logger.debug(
-      `File: ${file ? `${file.originalname} (${file.size} bytes)` : 'No file'}`,
+      `Create: ${JSON.stringify(createBasecardDto)}, file=${file ? `${file.originalname}(${file.size}B)` : 'none'}`,
     );
-    this.logger.debug('=========================');
 
     this.logger.log(`Creating card for address: ${createBasecardDto.address}`);
 
@@ -98,23 +129,6 @@ export class BasecardsController {
     }
   }
 
-  @Public()
-  @Get()
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'offset', required: false, type: Number })
-  findAll(@Query('limit') limit?: number, @Query('offset') offset?: number) {
-    return this.basecardsService.findAll(limit ?? 50, offset ?? 0);
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.basecardsService.findOne(id);
-  }
-
-  /**
-   * Phase 1: Process update - upload images but DON'T update DB
-   * Returns data for contract call (editBaseCard)
-   */
   @Patch(':address')
   @UseInterceptors(FileInterceptor('profileImageFile'))
   @ApiConsumes('multipart/form-data')
@@ -122,12 +136,15 @@ export class BasecardsController {
     @Param('address') address: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() updateBasecardDto: UpdateBasecardDto,
+    @Request() req,
   ) {
-    this.logger.debug('=== Update Request ===');
-    this.logger.debug(`Address: ${address}`);
-    this.logger.debug(`DTO: ${JSON.stringify(updateBasecardDto, null, 2)}`);
+    // 본인 확인
+    if (req.user.walletAddress?.toLowerCase() !== address.toLowerCase()) {
+      throw new ForbiddenException('You can only modify your own card');
+    }
+
     this.logger.debug(
-      `File: ${file ? `${file.originalname} (${file.size} bytes)` : 'No file'}`,
+      `Update: ${address}, dto=${JSON.stringify(updateBasecardDto)}, file=${file ? `${file.originalname}(${file.size}B)` : 'none'}`,
     );
 
     try {
@@ -165,10 +182,14 @@ export class BasecardsController {
   async rollbackUpdate(
     @Param('address') address: string,
     @Body() body: { ipfsId: string },
+    @Request() req,
   ) {
-    this.logger.debug(`=== Rollback Request ===`);
-    this.logger.debug(`Address: ${address}`);
-    this.logger.debug(`IPFS ID: ${body.ipfsId}`);
+    // 본인 확인
+    if (req.user.walletAddress?.toLowerCase() !== address.toLowerCase()) {
+      throw new ForbiddenException('You can only rollback your own card');
+    }
+
+    this.logger.debug(`Rollback: ${address}, ipfs=${body.ipfsId}`);
 
     try {
       return await this.basecardsService.rollbackUpdate({
@@ -182,6 +203,7 @@ export class BasecardsController {
     }
   }
 
+  // this is for event module to update tokenId and txHash
   @Put(':address')
   updateTokenId(
     @Param('address') address: string,
@@ -191,15 +213,12 @@ export class BasecardsController {
     return this.basecardsService.updateTokenId(address, tokenId, txHash);
   }
 
-  @Get('address/:address')
-  async findByAddress(@Param('address') address: string) {
-    const card = await this.basecardsService.findByAddress(address);
-    // Return null if not found - interceptor will wrap it as { success: true, result: null }
-    return card;
-  }
-
   @Delete(':address')
-  removeByAddress(@Param('address') address: string) {
+  removeByAddress(@Param('address') address: string, @Request() req) {
+    // 본인 확인
+    if (req.user.walletAddress?.toLowerCase() !== address.toLowerCase()) {
+      throw new ForbiddenException('You can only delete your own card');
+    }
     return this.basecardsService.removeByAddress(address);
   }
 }

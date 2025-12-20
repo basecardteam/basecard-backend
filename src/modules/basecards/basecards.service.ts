@@ -14,6 +14,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { IpfsService } from '../ipfs/ipfs.service';
 import { ImageService } from './services/image.service';
 import { EvmLib } from '../blockchain/evm.lib';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class BasecardsService {
@@ -24,6 +25,7 @@ export class BasecardsService {
     private ipfsService: IpfsService,
     private imageService: ImageService,
     private evmLib: EvmLib,
+    private configService: ConfigService,
   ) {}
 
   async checkHasMinted(address: string): Promise<boolean> {
@@ -44,7 +46,10 @@ export class BasecardsService {
 
     // Find user by address to get ID
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, createBasecardDto.address),
+      where: eq(
+        schema.users.walletAddress,
+        createBasecardDto.address.toLowerCase(),
+      ),
     });
 
     if (!user) {
@@ -118,7 +123,7 @@ export class BasecardsService {
       // 3. Upload NFT PNG to IPFS
       const ipfsResult = await this.ipfsService.uploadFile(
         nftPngBuffer,
-        `nft-${dto.address}-${Date.now()}.png`,
+        `BaseCard_${dto.address}.png`,
         'image/png',
       );
 
@@ -126,7 +131,11 @@ export class BasecardsService {
         throw new Error(`IPFS upload failed: ${ipfsResult.error}`);
       }
       const nftUri = `ipfs://${ipfsResult.cid}`;
-      const gatewayUrl = `https://ipfs.io/ipfs/${ipfsResult.cid}`;
+      const gatewayBase = this.configService.get<string>(
+        'IPFS_GATEWAY_URL',
+        'https://ipfs.io/ipfs',
+      );
+      const gatewayUrl = `${gatewayBase}/${ipfsResult.cid}`;
       this.logger.log(`IPFS Uploaded: ${nftUri}`);
       this.logger.log(`IPFS Gateway: ${gatewayUrl}`);
 
@@ -306,7 +315,7 @@ export class BasecardsService {
       // C. Upload NFT PNG to IPFS
       const ipfsResult = await this.ipfsService.uploadFile(
         nftPngBuffer,
-        `nft-${address}-${Date.now()}.png`,
+        `BaseCard_${address}.png`,
         'image/png',
       );
 
@@ -370,7 +379,7 @@ export class BasecardsService {
     txHash?: string,
   ) {
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address),
+      where: eq(schema.users.walletAddress, address.toLowerCase()),
     });
 
     if (!user) {
@@ -407,7 +416,7 @@ export class BasecardsService {
 
   async findByAddress(address: string) {
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address),
+      where: eq(schema.users.walletAddress, address.toLowerCase()),
     });
 
     if (!user) {
@@ -428,7 +437,7 @@ export class BasecardsService {
 
   async removeByAddress(address: string) {
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address),
+      where: eq(schema.users.walletAddress, address.toLowerCase()),
     });
 
     if (!user) {
@@ -444,39 +453,20 @@ export class BasecardsService {
       throw new BadRequestException('Cannot delete minted card');
     }
 
-    // Best effort: Delete images from S3 and IPFS in parallel
+    // Best effort: Delete IPFS file if exists
     try {
-      // Extract S3 key from Supabase URL (if any, but profileImage is removed from schema so we skip S3 cleanup for user profile)
-      let s3Key = '';
+      if (card?.imageUri) {
+        const cid = card.imageUri.startsWith('ipfs://')
+          ? card.imageUri.replace('ipfs://', '')
+          : card.imageUri.split('/ipfs/')[1];
 
-      // Extract CID from IPFS URL
-      let cid = '';
-      if (card && card.imageUri) {
-        if (card.imageUri.startsWith('ipfs://')) {
-          cid = card.imageUri.replace('ipfs://', '');
-        } else {
-          const parts = card.imageUri.split('/ipfs/');
-          if (parts.length === 2) {
-            cid = parts[1];
-          }
+        if (cid) {
+          await this.ipfsService.deleteFile(cid);
+          this.logger.debug(`Deleted IPFS file: ${cid}`);
         }
       }
-
-      // Parallel deletion of S3 and IPFS files
-      const deletePromises: Promise<void>[] = [];
-
-      if (cid) {
-        deletePromises.push(
-          this.ipfsService.deleteFile(cid).then(() => {
-            this.logger.log(`Deleted IPFS file: ${cid}`);
-          }),
-        );
-      }
-
-      await Promise.all(deletePromises);
     } catch (error) {
-      this.logger.warn('Failed to cleanup images during card deletion', error);
-      // Continue with DB deletion even if image cleanup fails
+      this.logger.warn('Failed to cleanup IPFS during card deletion', error);
     }
 
     await this.db

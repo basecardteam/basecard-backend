@@ -14,12 +14,8 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      'http://localhost:3000',
-      'http://localhost:5000',
-      'https://miniapp-dev.basecard.org',
-      'https://miniapp.basecard.org',
-      'https://miniapp-hwang.basecard.org',
-      'https://admin.basecard.org',
+      /^http:\/\/localhost(:\d+)?$/, // localhost 모든 포트
+      /^https:\/\/.*\.basecard\.org$/, // *.basecard.org 서브도메인
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,

@@ -30,7 +30,7 @@ export class UserQuestsService {
   async findAllForUser(address: string, fid?: number) {
     // Get user
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address),
+      where: eq(schema.users.walletAddress, address.toLowerCase()),
     });
 
     // Get all active quests
@@ -142,9 +142,8 @@ export class UserQuestsService {
     );
 
     // 2. Find the user
-    // We store raw address, so no normalization needed as per user request
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address),
+      where: eq(schema.users.walletAddress, address.toLowerCase()),
     });
 
     if (!user) {
@@ -234,7 +233,7 @@ export class UserQuestsService {
    */
   async verifyAllUserQuests(address: string, fid?: number) {
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address),
+      where: eq(schema.users.walletAddress, address.toLowerCase()),
     });
     if (!user) throw new BadRequestException('User not found');
 
