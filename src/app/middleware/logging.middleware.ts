@@ -13,11 +13,14 @@ export class LoggingMiddleware implements NestMiddleware {
 
     res.setHeader('x-request-id', requestId);
 
+    // Log incoming request
+    this.logger.log(`[${requestId}] → ${method} ${originalUrl}`);
+
     res.on('finish', () => {
       const { statusCode } = res;
       const duration = Date.now() - startTime;
       const errorMsg = res.locals?.errorMessage;
-      const baseLog = `[${requestId}] ${method} ${originalUrl} ${statusCode} - ${duration}ms`;
+      const baseLog = `[${requestId}] ← ${method} ${originalUrl} ${statusCode} - ${duration}ms`;
       const logMessage = errorMsg ? `${baseLog} - ${errorMsg}` : baseLog;
 
       if (statusCode >= 500) {

@@ -224,7 +224,7 @@ export class BasecardsService {
       bio?: string;
       socials?: Record<string, string>;
     },
-    file?: Express.Multer.File,
+    file: Express.Multer.File,
   ): Promise<{
     card_data: {
       nickname: string;
@@ -245,29 +245,31 @@ export class BasecardsService {
       throw new Error('Card not found for address');
     }
 
-    // 2. Merge with existing data
-    const nickname = updateData.nickname || existingCard.nickname || '';
-    const role = updateData.role || existingCard.role || '';
-    const bio =
-      updateData.bio !== undefined ? updateData.bio : existingCard.bio || '';
-    const socials = updateData.socials || existingCard.socials || {};
+    // 2. Use values directly from frontend (empty string = delete the field)
+    // Frontend always sends all fields, so we use them as-is
+    const nickname = updateData.nickname ?? '';
+    const role = updateData.role ?? '';
+    const bio = updateData.bio ?? '';
+    const socials = updateData.socials ?? {};
 
     // 3. Process image if provided
     let imageUri = existingCard.imageUri || '';
     let uploadedFiles: { ipfsId: string } | undefined;
 
-    if (file) {
-      this.logger.log('Processing updated profile image...');
-      const result = await this.processUpdateImage(file, address, {
-        nickname,
-        role,
-        bio,
-      });
-      imageUri = result.imageURI;
-      uploadedFiles = {
-        ipfsId: result.ipfsId,
-      };
+    if (!file) {
+      throw new Error('No file provided');
     }
+
+    this.logger.log('Processing updated profile image...');
+    const result = await this.processUpdateImage(file, address, {
+      nickname,
+      role,
+      bio,
+    });
+    imageUri = result.imageURI;
+    uploadedFiles = {
+      ipfsId: result.ipfsId,
+    };
 
     // 4. Format response (same as create) - NO DB UPDATE
     const socialKeys = Object.keys(socials);

@@ -27,9 +27,7 @@ export class UsersController {
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
-    this.logger.log(
-      `Creating user with address: ${createUserDto.walletAddress}`,
-    );
+    this.logger.log(`Login request: ${createUserDto.walletAddress}`);
     return this.usersService.create(createUserDto);
   }
 

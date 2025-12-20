@@ -45,12 +45,6 @@ export class BasecardsController {
     return this.basecardsService.findAll(limit ?? 50, offset ?? 0);
   }
 
-  @Public()
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.basecardsService.findOne(id);
-  }
-
   @Get('me')
   async findMyCard(@Request() req) {
     const walletAddress = req.user?.walletAddress;
@@ -59,6 +53,12 @@ export class BasecardsController {
     }
     const card = await this.basecardsService.findByAddress(walletAddress);
     return card;
+  }
+
+  @Public()
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.basecardsService.findOne(id);
   }
 
   @Post()
