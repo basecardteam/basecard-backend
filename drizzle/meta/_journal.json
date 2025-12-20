@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1764835184555,
-      "tag": "0000_condemned_supreme_intelligence",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1765286207916,
-      "tag": "0001_huge_agent_zero",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1765376044022,
-      "tag": "0002_strange_thing",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1766110554204,
-      "tag": "0003_deep_darwin",
+      "when": 1766215379726,
+      "tag": "0000_even_ma_gnuci",
       "breakpoints": true
     }
   ]
