@@ -60,6 +60,26 @@ export class BasecardsService {
     this.logger.log('Processing profile image file...');
     const { imageURI } = await this.processMinting(file, createBasecardDto);
 
+    // Simulate Contract Call (Backend Validation)
+    const socialKeys = createBasecardDto.socials
+      ? Object.keys(createBasecardDto.socials)
+      : [];
+    const socialValues = createBasecardDto.socials
+      ? (Object.values(createBasecardDto.socials) as string[])
+      : [];
+
+    await this.evmLib.simulateMintBaseCard(
+      createBasecardDto.address,
+      {
+        imageUri: imageURI,
+        nickname: createBasecardDto.nickname,
+        role: createBasecardDto.role,
+        bio: createBasecardDto.bio || '',
+      },
+      socialKeys,
+      socialValues,
+    );
+
     const card = await this.db.transaction(async (tx) => {
       const [newCard] = await tx
         .insert(schema.basecards)
@@ -75,14 +95,6 @@ export class BasecardsService {
 
       return newCard;
     });
-
-    // Format response as per spec
-    const socialKeys = createBasecardDto.socials
-      ? Object.keys(createBasecardDto.socials)
-      : [];
-    const socialValues = createBasecardDto.socials
-      ? Object.values(createBasecardDto.socials)
-      : [];
 
     this.logger.log(`Card created: ${card.id}`);
 
@@ -246,11 +258,21 @@ export class BasecardsService {
     }
 
     // 2. Use values directly from frontend (empty string = delete the field)
-    // Frontend always sends all fields, so we use them as-is
     const nickname = updateData.nickname ?? '';
     const role = updateData.role ?? '';
     const bio = updateData.bio ?? '';
-    const socials = updateData.socials ?? {};
+    const socials = updateData.socials ? { ...updateData.socials } : {};
+
+    // 3. Handle removal: if a handle was in DB but not in update request, add it as empty string
+    // This ensures it is properly cleared on-chain during editBaseCard call
+    if (existingCard.socials) {
+      const existingKeys = Object.keys(existingCard.socials);
+      for (const key of existingKeys) {
+        if (socials[key] === undefined) {
+          socials[key] = '';
+        }
+      }
+    }
 
     // 3. Process image if provided
     let imageUri = existingCard.imageUri || '';
@@ -271,9 +293,27 @@ export class BasecardsService {
       ipfsId: result.ipfsId,
     };
 
-    // 4. Format response (same as create) - NO DB UPDATE
+    // 4. Simulate Contract Call (Backend Validation)
     const socialKeys = Object.keys(socials);
     const socialValues = Object.values(socials) as string[];
+
+    const tokenId = await this.evmLib.getTokenId(address);
+    if (!tokenId) {
+      throw new Error('Token ID not found for address');
+    }
+
+    await this.evmLib.simulateEditBaseCard(
+      address,
+      tokenId,
+      {
+        imageUri,
+        nickname,
+        role,
+        bio,
+      },
+      socialKeys,
+      socialValues,
+    );
 
     this.logger.log(`Prepared update for ${address} - awaiting contract call`);
 

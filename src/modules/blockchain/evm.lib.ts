@@ -22,6 +22,9 @@ export class EvmLib {
       'function hasMinted(address _owner) public view returns (bool)',
       'function tokenIdOf(address _owner) public view returns (uint256)',
       'function getSocial(uint256 _tokenId, string memory _key) public view returns (string memory)',
+      'struct CardData { string imageURI; string nickname; string role; string bio; }',
+      'function mintBaseCard(CardData memory _initialCardData, string[] memory _socialKeys, string[] memory _socialValues) external',
+      'function editBaseCard(uint256 _tokenId, CardData memory _newCardData, string[] memory _socialKeys, string[] memory _socialValues) external',
     ]);
   }
 
@@ -145,6 +148,92 @@ export class EvmLib {
     } catch (error) {
       this.logger.error(`Error getting owner for token ${tokenId}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Simulate mintBaseCard contract call
+   */
+  async simulateMintBaseCard(
+    address: string,
+    cardData: {
+      imageUri: string;
+      nickname: string;
+      role: string;
+      bio: string;
+    },
+    socialKeys: string[],
+    socialValues: string[],
+  ): Promise<boolean> {
+    try {
+      await this.client.simulateContract({
+        address: this.contractAddress as `0x${string}`,
+        abi: this.contractAbi,
+        functionName: 'mintBaseCard',
+        account: address as `0x${string}`,
+        args: [
+          {
+            imageURI: cardData.imageUri,
+            nickname: cardData.nickname,
+            role: cardData.role,
+            bio: cardData.bio,
+          },
+          socialKeys,
+          socialValues,
+        ],
+      });
+      this.logger.log(`✅ Simulation successful: mintBaseCard for ${address}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `❌ Simulation failed: mintBaseCard for ${address}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Simulate editBaseCard contract call
+   */
+  async simulateEditBaseCard(
+    address: string,
+    tokenId: number,
+    cardData: {
+      imageUri: string;
+      nickname: string;
+      role: string;
+      bio: string;
+    },
+    socialKeys: string[],
+    socialValues: string[],
+  ): Promise<boolean> {
+    try {
+      await this.client.simulateContract({
+        address: this.contractAddress as `0x${string}`,
+        abi: this.contractAbi,
+        functionName: 'editBaseCard',
+        account: address as `0x${string}`,
+        args: [
+          BigInt(tokenId),
+          {
+            imageURI: cardData.imageUri,
+            nickname: cardData.nickname,
+            role: cardData.role,
+            bio: cardData.bio,
+          },
+          socialKeys,
+          socialValues,
+        ],
+      });
+      this.logger.log(`✅ Simulation successful: editBaseCard for ${address}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `❌ Simulation failed: editBaseCard for ${address}:`,
+        error,
+      );
+      throw error;
     }
   }
 }

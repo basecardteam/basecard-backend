@@ -233,6 +233,31 @@ export const contractEvents = pgTable(
 );
 
 // --------------------------------------------------------------------------
+// 8. Farcaster Notifications (for push notifications)
+// --------------------------------------------------------------------------
+export const farcasterNotifications = pgTable(
+  'farcaster_notifications',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id)
+      .notNull(),
+    fid: integer('fid').notNull(), // Farcaster ID
+    token: text('token').notNull(), // Notification token from Farcaster client
+    url: text('url').notNull(), // URL to send notifications to
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (table) => ({
+    userFidIdx: index('farcaster_notifications_user_fid_idx').on(
+      table.userId,
+      table.fid,
+    ),
+  }),
+);
+
+// --------------------------------------------------------------------------
 // Relations Definitions
 // --------------------------------------------------------------------------
 
