@@ -86,6 +86,9 @@ export class QuestVerificationService implements OnModuleInit {
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
+    // TODO: Re-enable after quest verification
+    return false;
+    /* Original logic:
     switch (actionType) {
       case 'FC_LINK':
         // Check if Farcaster is linked onchain
@@ -141,12 +144,16 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
+    */
   }
 
   private async verifyTwitter(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
+    // TODO: Re-enable after quest verification
+    return false;
+    /* Original logic:
     switch (actionType) {
       case 'X_LINK':
         // Check if Twitter is linked onchain
@@ -160,6 +167,7 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
+    */
   }
 
   private async verifyApp(
@@ -219,6 +227,9 @@ export class QuestVerificationService implements OnModuleInit {
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
+    // TODO: Re-enable after quest verification
+    return false;
+    /* Original logic:
     switch (actionType) {
       case 'GH_LINK':
         if (!ctx.tokenId) return false;
@@ -226,12 +237,16 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
+    */
   }
 
   private async verifyLinkedin(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
+    // TODO: Re-enable after quest verification
+    return false;
+    /* Original logic:
     switch (actionType) {
       case 'LI_LINK':
         if (!ctx.tokenId) return false;
@@ -239,12 +254,16 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
+    */
   }
 
   private async verifyBasename(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
+    // TODO: Re-enable after quest verification
+    return false;
+    /* Original logic:
     switch (actionType) {
       case 'BASE_LINK_NAME':
         if (!ctx.tokenId) return false;
@@ -252,12 +271,16 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
+    */
   }
 
   private async verifyWebsite(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
+    // TODO: Re-enable after quest verification
+    return false;
+    /* Original logic:
     switch (actionType) {
       case 'WEB_LINK':
         if (!ctx.tokenId) return false;
@@ -265,5 +288,6 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
+    */
   }
 }

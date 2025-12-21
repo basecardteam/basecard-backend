@@ -105,12 +105,7 @@ export class UserQuestsService {
     quest: typeof schema.quests.$inferSelect,
     data: { fid?: number },
   ): Promise<boolean> {
-    // For MINT (APP_BASECARD_MINT), check user's hasMintedCard first for quick check
-    if (quest.actionType === 'APP_BASECARD_MINT' && user.hasMintedCard) {
-      return true;
-    }
-
-    // Delegate to QuestVerificationService
+    // Delegate all verification to QuestVerificationService
     return this.questVerificationService.verify(
       quest.platform as Platform,
       quest.actionType as ActionType,

@@ -32,10 +32,15 @@ const EVENT_ABIS = [
   parseAbiItem(
     'event SocialLinked(uint256 indexed tokenId, string key, string value)',
   ),
+  parseAbiItem('event SocialUnlinked(uint256 indexed tokenId, string key)'),
   parseAbiItem('event BaseCardEdited(uint256 indexed tokenId)'),
 ] as const;
 
-type EventName = 'MintBaseCard' | 'SocialLinked' | 'BaseCardEdited';
+type EventName =
+  | 'MintBaseCard'
+  | 'SocialLinked'
+  | 'SocialUnlinked'
+  | 'BaseCardEdited';
 
 @Injectable()
 export class EventsService implements OnModuleInit, OnModuleDestroy {
@@ -108,7 +113,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
       this.unwatchers.push(unwatch);
       this.logger.log(
-        'Subscribed to events: MintBaseCard, SocialLinked, BaseCardEdited',
+        'Subscribed to events: MintBaseCard, SocialLinked, SocialUnlinked, BaseCardEdited',
       );
     } catch (error) {
       this.logger.error('Failed to set up event watcher', error);
@@ -207,6 +212,11 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           key: args.key,
           value: args.value,
         };
+      case 'SocialUnlinked':
+        return {
+          tokenId: args.tokenId?.toString(),
+          key: args.key,
+        };
       case 'BaseCardEdited':
         return {
           tokenId: args.tokenId?.toString(),
@@ -263,6 +273,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         break;
       case 'SocialLinked':
         await this.handleSocialLinked(event);
+        break;
+      case 'SocialUnlinked':
+        await this.handleSocialUnlinked(event);
         break;
       case 'BaseCardEdited':
         await this.handleBaseCardEdited(event);
@@ -333,6 +346,16 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const args = event.args as { tokenId: string; key: string; value: string };
     this.logger.log(
       `Processing SocialLinked: TokenId ${args.tokenId}, ${args.key}=${args.value}`,
+    );
+    // Currently just logging - no business logic needed
+  }
+
+  private async handleSocialUnlinked(
+    event: typeof schema.contractEvents.$inferSelect,
+  ) {
+    const args = event.args as { tokenId: string; key: string };
+    this.logger.log(
+      `Processing SocialUnlinked: TokenId ${args.tokenId}, key=${args.key}`,
     );
     // Currently just logging - no business logic needed
   }
