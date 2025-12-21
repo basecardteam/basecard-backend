@@ -46,11 +46,7 @@ export class UsersController {
   @Get('address/:address')
   async findByAddress(@Param('address') address: string) {
     this.logger.debug(`Finding user with address: ${address}`);
-    const user = await this.usersService.findByAddress(address);
-    if (!user) {
-      return { success: false, error: 'User not found' };
-    }
-    return { success: true, result: user };
+    return this.usersService.findByAddress(address);
   }
 
   @Patch(':id')

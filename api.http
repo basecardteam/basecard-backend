@@ -7,7 +7,10 @@
 @adminAddress = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
 ### Dev Token (bypasses auth - reads from .env)
+### Variables
 @devToken = {{$dotenv DEV_JWT_TOKEN}}
+@aliceToken = {{$dotenv DEV_JWT_TOKEN_ALICE}}
+@bobToken = {{$dotenv DEV_JWT_TOKEN_BOB}}
 
 ### ===========================================
 ### AUTH API (Admin)
@@ -233,37 +236,50 @@ GET {{baseUrl}}/v1/basecards
 ### Get User ID for Alice (Collector)
 # @name getAlice
 GET {{baseUrl}}/v1/users/address/{{aliceAddress}}
+Authorization: Bearer {{aliceToken}}
 
-### Get Card ID for Bob (Collected)
-# @name getBobCard
-GET {{baseUrl}}/v1/basecards/address/{{bobAddress}}
+### Get User ID for Bob (Collector)
+# @name getBob
+GET {{baseUrl}}/v1/users/address/{{bobAddress}}
+Authorization: Bearer {{bobToken}}
 
-### Create Collection (Alice collects Bob)
+
+### Get Alice's Card
+# @name getAliceCard
+GET {{baseUrl}}/v1/basecards/me
+Authorization: Bearer {{devToken}}
+
+### Get All Basecards to find card IDs
+# @name getAllCards
+GET {{baseUrl}}/v1/basecards
+
+### Create Collection (Collect a BaseCard)
+# JWT token determines the collector, only basecardId is needed
+# First run "Get All Basecards" above to get card IDs from response
+# Then use: {{getAllCards.response.body[0].id}} for first card
+# Or manually copy the id from the response
 POST {{baseUrl}}/v1/collections
 Content-Type: application/json
+Authorization: Bearer {{aliceToken}}
 
 {
-  "collectorAddress": "{{aliceAddress}}",
-  "collectedAddress": "{{bobAddress}}"
+  "basecardId": "{{getBob.response.body.result.card.id}}"
 }
 
-### Create Collection (Bob collects Alice)
-POST {{baseUrl}}/v1/collections
-Content-Type: application/json
-
-{
-  "collectorAddress": "{{bobAddress}}",
-  "collectedAddress": "{{aliceAddress}}"
-}
-
-### Get Alice's Collections
-GET {{baseUrl}}/v1/collections?address={{aliceAddress}}
-
-### Get Bob's Collections
-GET {{baseUrl}}/v1/collections?address={{bobAddress}}
+### Request as Alice
+GET {{baseUrl}}/v1/collections/me
+Authorization: Bearer {{aliceToken}}
+### Request as Bob
+GET {{baseUrl}}/v1/collections/me
+Authorization: Bearer {{bobToken}}
 
 ### Get Collections
 GET {{baseUrl}}/v1/collections
+
+### Get My Collections (JWT Required)
+# Returns array of collected BaseCards for the authenticated user
+GET {{baseUrl}}/v1/collections/me
+Authorization: Bearer {{devToken}}
 
 ### ===========================================
 ### EVENTS API

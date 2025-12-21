@@ -2,16 +2,8 @@ import { IsNotEmpty, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCollectionDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'ID of the BaseCard to collect' })
   @IsString()
   @IsNotEmpty()
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  collectorAddress: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  collectedAddress: string;
+  basecardId: string;
 }

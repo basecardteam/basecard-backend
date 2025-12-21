@@ -32,14 +32,10 @@ export class CollectionsController {
     if (!walletAddress) {
       throw new ForbiddenException('Wallet address not found in token');
     }
-    // Verify user can only create collections for themselves
-    if (
-      createCollectionDto.collectorAddress.toLowerCase() !==
-      walletAddress.toLowerCase()
-    ) {
-      throw new ForbiddenException('Cannot create collections for other users');
-    }
-    return this.collectionsService.create(createCollectionDto);
+    return this.collectionsService.create(
+      walletAddress,
+      createCollectionDto.basecardId,
+    );
   }
 
   @Get('me')

@@ -24,25 +24,21 @@ export class CollectionsService {
     private basecardsService: BasecardsService,
   ) {}
 
-  async create(createCollectionDto: CreateCollectionDto) {
+  async create(collectorAddress: string, basecardId: string) {
     // 1. Resolve Collector (User)
-    const collector = await this.usersService.findByAddress(
-      createCollectionDto.collectorAddress,
-    );
+    const collector = await this.usersService.findByAddress(collectorAddress);
     if (!collector) {
       throw new NotFoundException(
-        `Collector user not found: ${createCollectionDto.collectorAddress}`,
+        `Collector user not found: ${collectorAddress}`,
       );
     }
 
-    // 2. Resolve Collected Card (Basecard)
-    const collectedCard = await this.basecardsService.findByAddress(
-      createCollectionDto.collectedAddress,
-    );
+    // 2. Resolve Collected Card (Basecard) by ID
+    const collectedCard = await this.db.query.basecards.findFirst({
+      where: eq(schema.basecards.id, basecardId),
+    });
     if (!collectedCard) {
-      throw new NotFoundException(
-        `Basecard not found for address: ${createCollectionDto.collectedAddress}`,
-      );
+      throw new NotFoundException(`Basecard not found: ${basecardId}`);
     }
 
     // 3. Create Collection
