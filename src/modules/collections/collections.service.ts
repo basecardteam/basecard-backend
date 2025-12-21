@@ -33,7 +33,17 @@ export class CollectionsService {
       );
     }
 
-    // 2. Resolve Collected Card (Basecard) by ID
+    // 2. Check if collector has their own BaseCard
+    const collectorCard = await this.db.query.basecards.findFirst({
+      where: eq(schema.basecards.userId, collector.id),
+    });
+    if (!collectorCard) {
+      throw new BadRequestException(
+        'You must have your own BaseCard before collecting others',
+      );
+    }
+
+    // 3. Resolve Collected Card (Basecard) by ID
     const collectedCard = await this.db.query.basecards.findFirst({
       where: eq(schema.basecards.id, basecardId),
     });
