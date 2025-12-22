@@ -154,6 +154,7 @@ export class EvmLib {
     },
     socialKeys: string[],
     socialValues: string[],
+    initialDelegates: string[],
   ): Promise<boolean> {
     try {
       await this.client.simulateContract({
@@ -170,6 +171,7 @@ export class EvmLib {
           },
           socialKeys,
           socialValues,
+          initialDelegates,
         ],
       });
       this.logger.log(`✅ Simulation successful: mintBaseCard for ${address}`);

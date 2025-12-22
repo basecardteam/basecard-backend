@@ -56,6 +56,15 @@ export class BasecardsService {
       throw new Error('User not found');
     }
 
+    // Get user's wallet addresses for initialDelegates
+    const userWallets = await this.db.query.userWallets.findMany({
+      where: eq(schema.userWallets.userId, user.id),
+    });
+    const initialDelegates = userWallets.map((w) => w.walletAddress);
+    this.logger.debug(
+      `Initial delegates for ${createBasecardDto.address}: ${initialDelegates.join(', ')}`,
+    );
+
     // Process Image (Minting)
     this.logger.log('Processing profile image file...');
     const { imageURI } = await this.processMinting(file, createBasecardDto);
@@ -80,6 +89,7 @@ export class BasecardsService {
       },
       socialKeys,
       socialValues,
+      initialDelegates,
     );
 
     const card = await this.db.transaction(async (tx) => {
@@ -109,6 +119,7 @@ export class BasecardsService {
       },
       social_keys: socialKeys,
       social_values: socialValues,
+      initial_delegates: initialDelegates,
     };
   }
 

@@ -184,7 +184,19 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private serializeArgs(eventName: EventName, args: any): Record<string, any> {
+  private serializeArgs(eventName: string, args: any): Record<string, any> {
+    // Helper to convert BigInt to string
+    const serializeValue = (val: any): any => {
+      if (typeof val === 'bigint') return val.toString();
+      if (Array.isArray(val)) return val.map(serializeValue);
+      if (typeof val === 'object' && val !== null) {
+        return Object.fromEntries(
+          Object.entries(val).map(([k, v]) => [k, serializeValue(v)]),
+        );
+      }
+      return val;
+    };
+
     switch (eventName) {
       case 'MintBaseCard':
         return {
@@ -206,8 +218,20 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         return {
           tokenId: args.tokenId?.toString(),
         };
+      case 'Transfer':
+        return {
+          from: args.from,
+          to: args.to,
+          tokenId: args.tokenId?.toString(),
+        };
+      case 'TokenDelegateGranted':
+        return {
+          tokenId: args.tokenId?.toString(),
+          delegate: args.delegate,
+        };
       default:
-        return args;
+        // Serialize all BigInt values in unknown events
+        return serializeValue(args);
     }
   }
 
