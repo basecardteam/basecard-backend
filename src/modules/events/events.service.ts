@@ -12,31 +12,15 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { BasecardsService } from '../basecards/basecards.service';
 import { UsersService } from '../users/users.service';
 import { eq, desc, and } from 'drizzle-orm';
-import {
-  createPublicClient,
-  webSocket,
-  parseAbiItem,
-  fallback,
-  Log,
-} from 'viem';
+import { createPublicClient, webSocket, fallback, Log } from 'viem';
 import { baseSepolia } from 'viem/chains';
 
 import { AppConfigService } from '../../app/configs/app-config.service';
 import { EvmLib } from '../blockchain/evm.lib';
 import { IpfsService, getBaseCardFilename } from '../ipfs/ipfs.service';
+import * as BaseCardABI from '../blockchain/abi/BaseCard.json';
 
-// Event ABIs
-const EVENT_ABIS = [
-  parseAbiItem(
-    'event MintBaseCard(address indexed user, uint256 indexed tokenId)',
-  ),
-  parseAbiItem(
-    'event SocialLinked(uint256 indexed tokenId, string key, string value)',
-  ),
-  parseAbiItem('event SocialUnlinked(uint256 indexed tokenId, string key)'),
-  parseAbiItem('event BaseCardEdited(uint256 indexed tokenId)'),
-] as const;
-
+// Event names we listen to
 type EventName =
   | 'MintBaseCard'
   | 'SocialLinked'
@@ -99,7 +83,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       // Subscribe to all events at once
       const unwatch = this.client.watchContractEvent({
         address: this.contractAddress as `0x${string}`,
-        abi: EVENT_ABIS,
+        abi: BaseCardABI.abi as any,
         onLogs: async (logs: Log[]) => {
           this.reconnectAttempts = 0;
           for (const log of logs) {

@@ -38,6 +38,7 @@ export class AuthService {
 
       // Fetch primary Ethereum address for the FID
       const address = await this.resolvePrimaryAddress(payload.sub);
+      this.logger.debug(`Farcaster Client User Address: ${address}`);
 
       if (!address) {
         throw new Error('No primary address found for FID');
@@ -107,34 +108,91 @@ export class AuthService {
   }
 
   /**
-   * Shared login logic: Find or Create User -> Issue Token
+   * Shared login logic for Farcaster: Find or Create User -> Issue Token
+   * @param loginAddress - The wallet address user is logging in with
+   * @param fid - Farcaster ID
+   * @param clientFid - Client app FID (9152=Farcaster, 309857=BaseApp)
+   * @param tokenAddress - Address from the Farcaster token (always Farcaster primary address)
+   */
+  async loginOrRegisterWithFarcaster(
+    loginAddress: string,
+    fid: number,
+    clientFid: number,
+    tokenAddress: string,
+  ) {
+    const safeLoginAddress = loginAddress.toLowerCase();
+    const safeTokenAddress = tokenAddress.toLowerCase();
+
+    // Create or find user with FID (use loginAddress as primary)
+    let user = await this.usersService.findByAddress(safeLoginAddress);
+
+    if (!user) {
+      const newUser = await this.usersService.create({
+        walletAddress: safeLoginAddress,
+        fid,
+      });
+      user = { ...newUser, card: null } as any;
+    } else if (!user.fid && fid) {
+      // Update FID if not set
+      await this.usersService.update(user.id, { fid } as any);
+      user.fid = fid;
+    }
+
+    // 1. Always add tokenAddress as 'farcaster' (clientFid=9152)
+    await this.usersService.addClientWallet(
+      user!.id,
+      safeTokenAddress,
+      'farcaster',
+      9152, // Farcaster fixed
+    );
+
+    // 2. Add loginAddress with the client's clientFid (if different from tokenAddress)
+    if (safeLoginAddress !== safeTokenAddress) {
+      const clientType = clientFid === 309857 ? 'baseapp' : 'farcaster';
+      await this.usersService.addClientWallet(
+        user!.id,
+        safeLoginAddress,
+        clientType,
+        clientFid,
+      );
+    }
+
+    const payload = {
+      sub: user!.id,
+      fid: user!.fid,
+      walletAddress: safeLoginAddress,
+      role: user!.role,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user,
+    };
+  }
+
+  /**
+   * Shared login logic for Wallet-only (MetaMask): Find or Create User -> Issue Token
    */
   async loginOrRegister(address: string) {
     const safeAddress = address.toLowerCase();
+
     let user = await this.usersService.findByAddress(safeAddress);
+
     if (!user) {
-      this.logger.log(`User not found for ${safeAddress}, creating new user.`);
-      try {
-        const newUser = await this.usersService.create({
-          walletAddress: safeAddress,
-        });
-        // The service returns the created result, likely an array or object.
-        // We need to ensure we get the user object back.
-        // Assuming update/create returns standard Drizzle result or the object.
-        // Let's re-fetch to be safe or rely on return.
-        // Checking users.service.ts source would be good, but safe to fetch again or trust return if typed.
-        user = Array.isArray(newUser) ? newUser[0] : newUser;
-      } catch (e) {
-        this.logger.error(`Failed to create user: ${e.message}`);
-        throw new Error('Could not create user');
-      }
+      const newUser = await this.usersService.create({
+        walletAddress: safeAddress,
+      });
+      user = { ...newUser, card: null } as any;
     }
-    if (!user) throw new Error('User retrieval failed during login');
+
+    // Track as metamask wallet
+    await this.usersService.addClientWallet(user!.id, safeAddress, 'metamask');
 
     const payload = {
-      sub: user.id,
-      address: user.walletAddress,
-      role: user.role,
+      sub: user!.id,
+      fid: user!.fid,
+      walletAddress: safeAddress,
+      role: user!.role,
     };
 
     return {

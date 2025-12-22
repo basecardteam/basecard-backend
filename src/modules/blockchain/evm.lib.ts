@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../app/configs/app-config.service';
-import { createPublicClient, http, parseAbi } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { baseSepolia } from 'viem/chains';
+import * as BaseCardABI from './abi/BaseCard.json';
 
 @Injectable()
 export class EvmLib {
@@ -18,14 +19,7 @@ export class EvmLib {
   }
 
   private get contractAbi() {
-    return parseAbi([
-      'function hasMinted(address _owner) public view returns (bool)',
-      'function tokenIdOf(address _owner) public view returns (uint256)',
-      'function getSocial(uint256 _tokenId, string memory _key) public view returns (string memory)',
-      'struct CardData { string imageURI; string nickname; string role; string bio; }',
-      'function mintBaseCard(CardData memory _initialCardData, string[] memory _socialKeys, string[] memory _socialValues) external',
-      'function editBaseCard(uint256 _tokenId, CardData memory _newCardData, string[] memory _socialKeys, string[] memory _socialValues) external',
-    ]);
+    return BaseCardABI.abi;
   }
 
   async getHasMinted(address: string): Promise<boolean> {
@@ -95,9 +89,7 @@ export class EvmLib {
     try {
       const tokenUri = await this.client.readContract({
         address: this.contractAddress as `0x${string}`,
-        abi: parseAbi([
-          'function tokenURI(uint256 _tokenId) public view returns (string memory)',
-        ]),
+        abi: this.contractAbi,
         functionName: 'tokenURI',
         args: [BigInt(tokenId)],
       });
@@ -138,9 +130,7 @@ export class EvmLib {
     try {
       const owner = await this.client.readContract({
         address: this.contractAddress as `0x${string}`,
-        abi: parseAbi([
-          'function ownerOf(uint256 tokenId) view returns (address)',
-        ]),
+        abi: this.contractAbi,
         functionName: 'ownerOf',
         args: [BigInt(tokenId)],
       });

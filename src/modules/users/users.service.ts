@@ -19,28 +19,43 @@ export class UsersService {
     private basecardsService: BasecardsService,
   ) {}
 
-  async create(createUserDto: CreateUserDto) {
+  /**
+   * Create or find user by wallet address
+   * Optionally sets FID if provided
+   */
+  async create(createUserDto: CreateUserDto & { fid?: number }) {
+    const safeAddress = createUserDto.walletAddress.toLowerCase();
+
     const existing = await this.db.query.users.findFirst({
-      where: eq(
-        schema.users.walletAddress,
-        createUserDto.walletAddress.toLowerCase(),
-      ),
+      where: eq(schema.users.walletAddress, safeAddress),
     });
+
     if (existing) {
       this.logger.debug(`User already exists: ${existing.id}`);
-      // Sync onchain data for existing user (in case event listener missed it)
-      await this.syncOnchainData(createUserDto.walletAddress);
+
+      // Update FID if provided and not set
+      if (createUserDto.fid && !existing.fid) {
+        await this.db
+          .update(schema.users)
+          .set({ fid: createUserDto.fid })
+          .where(eq(schema.users.id, existing.id));
+        this.logger.log(`Updated FID for user ${existing.id}`);
+      }
+
       return existing;
     }
 
     const [user] = await this.db
       .insert(schema.users)
       .values({
-        walletAddress: createUserDto.walletAddress.toLowerCase(),
+        walletAddress: safeAddress,
+        fid: createUserDto.fid || null,
         isNewUser: true,
       })
       .returning();
-    this.logger.log(`Created new user: ${user.id}`);
+    this.logger.log(
+      `Created new user: ${user.id} (FID: ${createUserDto.fid || 'none'})`,
+    );
 
     // Initialize User Quests
     const activeQuests = await this.db.query.quests.findMany({
@@ -60,61 +75,35 @@ export class UsersService {
       );
     }
 
-    // Sync onchain data for new user (in case they already minted externally)
-    await this.syncOnchainData(createUserDto.walletAddress);
-
     return user;
   }
 
   /**
-   * Sync onchain data (tokenId, hasMintedCard) with DB
-   * This ensures DB stays in sync even if event listener missed events
+   * Add wallet to user_wallets (for tracking client-specific wallets)
    */
-  private async syncOnchainData(rawAddress: string): Promise<void> {
-    const address = rawAddress.toLowerCase();
-    try {
-      // 1. Check onchain tokenId
-      const tokenId = await this.evmLib.getTokenId(address);
+  async addClientWallet(
+    userId: string,
+    walletAddress: string,
+    clientType: 'farcaster' | 'baseapp' | 'metamask',
+    clientFid?: number,
+  ): Promise<void> {
+    const safeAddress = walletAddress.toLowerCase();
 
-      if (!tokenId) {
-        // User hasn't minted yet, nothing to sync
-        return;
-      }
+    // Check if already exists
+    const existing = await this.db.query.userWallets.findFirst({
+      where: eq(schema.userWallets.walletAddress, safeAddress),
+    });
 
-      // 2. Check if DB already has this data
-      const user = await this.db.query.users.findFirst({
-        where: eq(schema.users.walletAddress, address),
-        with: { card: true },
+    if (!existing) {
+      await this.db.insert(schema.userWallets).values({
+        userId,
+        walletAddress: safeAddress,
+        clientType,
+        clientFid,
       });
-
-      if (!user) return;
-
-      // 3. If user has minted onchain but DB doesn't reflect it, sync
-      const needsSync = !user.hasMintedCard || !user.card?.tokenId;
-
-      if (needsSync) {
-        this.logger.log(
-          `Syncing onchain data for ${address}: tokenId=${tokenId}`,
-        );
-
-        // Update basecards table with tokenId
-        if (user.card && !user.card.tokenId) {
-          await this.basecardsService.updateTokenId(address, tokenId);
-        }
-
-        // Update user hasMintedCard if not set
-        if (!user.hasMintedCard) {
-          await this.db
-            .update(schema.users)
-            .set({ hasMintedCard: true })
-            .where(eq(schema.users.walletAddress, address));
-        }
-
-        this.logger.log(`Onchain sync completed for ${address}`);
-      }
-    } catch (error) {
-      // Don't fail the request if sync fails, just log
-      this.logger.warn(`Failed to sync onchain data for ${address}:`, error);
+      this.logger.log(
+        `Added ${clientType} wallet for user ${userId}: ${safeAddress}`,
+      );
     }
   }
 
@@ -132,6 +121,7 @@ export class UsersService {
       where: eq(schema.users.id, id),
       with: {
         card: true,
+        wallets: true,
         earnList: true,
         collections: true,
       },
@@ -143,6 +133,16 @@ export class UsersService {
       where: eq(schema.users.walletAddress, address.toLowerCase()),
       with: {
         card: true,
+      },
+    });
+  }
+
+  async findByFid(fid: number) {
+    return this.db.query.users.findFirst({
+      where: eq(schema.users.fid, fid),
+      with: {
+        card: true,
+        wallets: true,
       },
     });
   }

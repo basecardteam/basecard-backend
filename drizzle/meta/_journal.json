@@ -22,6 +22,13 @@
       "when": 1766385779946,
       "tag": "0002_overrated_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1766408425475,
+      "tag": "0003_next_maximus",
+      "breakpoints": true
     }
   ]
 }

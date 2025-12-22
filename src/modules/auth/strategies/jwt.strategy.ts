@@ -20,7 +20,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.sub,
       role: payload.role,
-      walletAddress: payload.address, // Map 'address' to 'walletAddress'
+      fid: payload.fid,
+      walletAddress: payload.walletAddress,
     };
   }
 }

@@ -61,7 +61,31 @@ Content-Type: application/json
 
 ### Get All Users
 GET {{baseUrl}}/v1/users
+Authorization: Bearer {{devToken}}
 
+### Get User by ID (includes wallets)
+# Use userId from login response or user creation
+# Recent user from logs: dcc751cf-cfa9-469d-801e-ae25632a309a
+@testUserId = dcc751cf-cfa9-469d-801e-ae25632a309a
+GET {{baseUrl}}/v1/users/{{testUserId}}
+Authorization: Bearer {{devToken}}
+
+### Get My User Info (includes wallets, card, collections)
+# Returns user with wallets array to verify user_wallets records
+GET {{baseUrl}}/v1/users/me
+Authorization: Bearer {{devToken}}
+
+### ===========================================
+### USER WALLETS API
+### ===========================================
+
+### Get All User Wallets
+GET {{baseUrl}}/v1/user-wallets
+Authorization: Bearer {{devToken}}
+
+### Get My Wallets
+GET {{baseUrl}}/v1/user-wallets/me
+Authorization: Bearer {{devToken}}
 
 ### Update new user when bob is not 
 PATCH {{baseUrl}}/v1/users/{{bobAddress}}

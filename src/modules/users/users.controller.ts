@@ -8,6 +8,7 @@ import {
   Delete,
   Logger,
   Query,
+  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -29,6 +30,12 @@ export class UsersController {
   create(@Body() createUserDto: CreateUserDto) {
     this.logger.log(`Login request: ${createUserDto.walletAddress}`);
     return this.usersService.create(createUserDto);
+  }
+
+  @Get('me')
+  async findMe(@Request() req) {
+    this.logger.debug(`Finding current user: ${req.user?.userId}`);
+    return this.usersService.findOne(req.user?.userId);
   }
 
   @Get()

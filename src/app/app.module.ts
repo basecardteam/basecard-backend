@@ -8,6 +8,7 @@ import { AuthModule } from '../modules/auth/auth.module';
 import { EarnModule } from '../modules/earn/earn.module';
 import { QuestsModule } from '../modules/quests/quests.module';
 import { UserQuestsModule } from '../modules/user-quests/user-quests.module';
+import { UserWalletsModule } from '../modules/user-wallets/user-wallets.module';
 import { CollectionsModule } from '../modules/collections/collections.module';
 import { EventsModule } from '../modules/events/events.module';
 import { HealthModule } from '../modules/health/health.module';
@@ -26,6 +27,7 @@ import { LoggingMiddleware } from './middleware/logging.middleware';
     DbModule,
     CommonModule,
     UsersModule,
+    UserWalletsModule,
     BasecardsModule,
     EarnModule,
     QuestsModule,

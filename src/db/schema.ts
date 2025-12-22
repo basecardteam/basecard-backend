@@ -15,13 +15,21 @@ import {
 
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
 
+// Client type for user wallets
+export const clientTypeEnum = pgEnum('client_type', [
+  'farcaster',
+  'baseapp',
+  'metamask',
+]);
+
 // --------------------------------------------------------------------------
-// 1. Users (Account)
+// 1. Users (Account) - with FID support
 // --------------------------------------------------------------------------
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(), // UUID
   role: userRoleEnum('role').default('user').notNull(),
   walletAddress: varchar('wallet_address', { length: 42 }).unique().notNull(),
+  fid: integer('fid').unique(), // Farcaster ID (nullable for wallet-only login)
 
   totalPoints: integer('total_points').default(0).notNull(),
 
@@ -31,6 +39,27 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// --------------------------------------------------------------------------
+// 1-1. User Wallets (client-specific wallet addresses)
+// --------------------------------------------------------------------------
+export const userWallets = pgTable(
+  'user_wallets',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id)
+      .notNull(),
+    walletAddress: varchar('wallet_address', { length: 42 }).notNull(),
+    clientType: clientTypeEnum('client_type').notNull(),
+    clientFid: integer('client_fid'), // Farcaster: 9152, BaseApp: 309857
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('user_wallets_user_id_idx').on(table.userId),
+    index('user_wallets_client_type_idx').on(table.clientType),
+  ],
+);
 
 // --------------------------------------------------------------------------
 // 2. Cards (Profile & NFT)
@@ -266,10 +295,18 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [basecards.userId],
   }),
+  wallets: many(userWallets), // 1:N wallet addresses
   pointLogs: many(pointLogs),
   completedQuests: many(userQuests),
   earnList: many(earn), // 내가 올린 공고들
   collections: many(collections), // 내가 수집한 카드들
+}));
+
+export const userWalletsRelations = relations(userWallets, ({ one }) => ({
+  user: one(users, {
+    fields: [userWallets.userId],
+    references: [users.id],
+  }),
 }));
 
 export const cardsRelations = relations(basecards, ({ one, many }) => ({
