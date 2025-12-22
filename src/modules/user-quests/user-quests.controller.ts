@@ -54,14 +54,15 @@ export class UserQuestsController {
       throw new ForbiddenException('Wallet address not found in token');
     }
 
-    // Verify user can only claim their own quests
-    if (claimQuestDto.address.toLowerCase() !== walletAddress.toLowerCase()) {
-      throw new ForbiddenException('Cannot claim quests for other users');
-    }
+    const fid = req.user?.fid;
 
     this.logger.log(
-      `Claim quest request: ${claimQuestDto.address} - ${claimQuestDto.questId}`,
+      `Claim quest request: ${walletAddress} - ${claimQuestDto.questId}`,
     );
-    return this.userQuestsService.claimQuest(claimQuestDto);
+    return this.userQuestsService.claimQuest(
+      claimQuestDto.questId,
+      walletAddress,
+      fid,
+    );
   }
 }

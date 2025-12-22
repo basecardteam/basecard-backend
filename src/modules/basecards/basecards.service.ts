@@ -11,7 +11,7 @@ import * as schema from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-import { IpfsService } from '../ipfs/ipfs.service';
+import { IpfsService, getBaseCardFilename } from '../ipfs/ipfs.service';
 import { ImageService } from './services/image.service';
 import { EvmLib } from '../blockchain/evm.lib';
 import { ConfigService } from '@nestjs/config';
@@ -61,12 +61,14 @@ export class BasecardsService {
     const { imageURI } = await this.processMinting(file, createBasecardDto);
 
     // Simulate Contract Call (Backend Validation)
-    const socialKeys = createBasecardDto.socials
-      ? Object.keys(createBasecardDto.socials)
+    // Filter out empty social values to avoid unnecessary onchain storage
+    const filteredSocials = createBasecardDto.socials
+      ? Object.entries(createBasecardDto.socials).filter(
+          ([, value]) => value && value.trim() !== '',
+        )
       : [];
-    const socialValues = createBasecardDto.socials
-      ? (Object.values(createBasecardDto.socials) as string[])
-      : [];
+    const socialKeys = filteredSocials.map(([key]) => key);
+    const socialValues = filteredSocials.map(([, value]) => value);
 
     await this.evmLib.simulateMintBaseCard(
       createBasecardDto.address,
@@ -135,7 +137,7 @@ export class BasecardsService {
       // 3. Upload NFT PNG to IPFS
       const ipfsResult = await this.ipfsService.uploadFile(
         nftPngBuffer,
-        `BaseCard_${dto.address}.png`,
+        getBaseCardFilename(dto.address),
         'image/png',
       );
 
@@ -147,7 +149,7 @@ export class BasecardsService {
         'IPFS_GATEWAY_URL',
         'https://ipfs.io/ipfs',
       );
-      const gatewayUrl = `${gatewayBase}/${ipfsResult.cid}`;
+      const gatewayUrl = `https://${gatewayBase}/${ipfsResult.cid}`;
       this.logger.log(`IPFS Uploaded: ${nftUri}`);
       this.logger.log(`IPFS Gateway: ${gatewayUrl}`);
 
@@ -357,7 +359,7 @@ export class BasecardsService {
       // C. Upload NFT PNG to IPFS
       const ipfsResult = await this.ipfsService.uploadFile(
         nftPngBuffer,
-        `BaseCard_${address}.png`,
+        getBaseCardFilename(address),
         'image/png',
       );
 
@@ -503,7 +505,7 @@ export class BasecardsService {
           : card.imageUri.split('/ipfs/')[1];
 
         if (cid) {
-          await this.ipfsService.deleteFile(cid);
+          await this.ipfsService.deleteFileByCid(cid);
           this.logger.debug(`Deleted IPFS file: ${cid}`);
         }
       }

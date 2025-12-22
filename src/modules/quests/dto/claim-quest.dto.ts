@@ -1,47 +1,12 @@
-import {
-  IsEthereumAddress,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ClaimQuestDto {
   @ApiProperty({
-    description: 'User wallet address',
-    example: '0x1234567890abcdef1234567890abcdef12345678',
+    description: 'Quest ID to claim',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   })
   @IsNotEmpty()
-  @IsEthereumAddress()
-  address: string;
-
-  @IsNotEmpty()
-  @IsString()
+  @IsUUID()
   questId: string;
-
-  @ApiProperty({
-    description: 'Farcaster ID (FID) for verification',
-    example: 123456,
-    required: false,
-  })
-  @IsOptional()
-  fid?: number;
-}
-
-export class VerifyQuestDto {
-  @ApiProperty({
-    description: 'User wallet address',
-    example: '0x1234567890abcdef1234567890abcdef12345678',
-  })
-  @IsNotEmpty()
-  @IsEthereumAddress()
-  address: string;
-
-  @ApiProperty({
-    description: 'Farcaster ID (FID) for verification',
-    example: 123456,
-    required: false,
-  })
-  @IsOptional()
-  fid?: number;
 }

@@ -129,7 +129,6 @@ export class AuthService {
         throw new Error('Could not create user');
       }
     }
-
     if (!user) throw new Error('User retrieval failed during login');
 
     const payload = {

@@ -72,11 +72,11 @@ async function seed() {
       rewardAmount: 200,
       frequency: 'ONCE' as const,
     },
-    // TWITTER Platform
+    // X Platform
     {
-      title: 'Link Twitter',
-      description: 'Link your Twitter account',
-      platform: 'TWITTER' as const,
+      title: 'Link X',
+      description: 'Link your X account',
+      platform: 'X' as const,
       actionType: 'X_LINK',
       rewardAmount: 10,
       frequency: 'ONCE' as const,
@@ -96,15 +96,6 @@ async function seed() {
       description: 'Link your LinkedIn account',
       platform: 'LINKEDIN' as const,
       actionType: 'LI_LINK',
-      rewardAmount: 10,
-      frequency: 'ONCE' as const,
-    },
-    // BASENAME Platform
-    {
-      title: 'Link Basename',
-      description: 'Link your Basename',
-      platform: 'BASENAME' as const,
-      actionType: 'BASE_LINK_NAME',
       rewardAmount: 10,
       frequency: 'ONCE' as const,
     },

@@ -8,7 +8,7 @@
 // Platform Types
 export const PLATFORMS = [
   'FARCASTER',
-  'TWITTER',
+  'X',
   'APP',
   'GITHUB',
   'LINKEDIN',
@@ -21,7 +21,7 @@ export type Platform = (typeof PLATFORMS)[number];
 // Action Types grouped by Platform
 export const ACTION_TYPES = {
   FARCASTER: ['FC_LINK', 'FC_SHARE', 'FC_FOLLOW', 'FC_POST_HASHTAG'],
-  TWITTER: ['X_LINK', 'X_FOLLOW'],
+  X: ['X_LINK', 'X_FOLLOW'],
   APP: [
     'APP_NOTIFICATION',
     'APP_DAILY_CHECKIN',
@@ -42,7 +42,7 @@ export const ACTION_TYPES = {
 // Flatten all action types into a union type
 export type ActionType =
   | (typeof ACTION_TYPES.FARCASTER)[number]
-  | (typeof ACTION_TYPES.TWITTER)[number]
+  | (typeof ACTION_TYPES.X)[number]
   | (typeof ACTION_TYPES.APP)[number]
   | (typeof ACTION_TYPES.GITHUB)[number]
   | (typeof ACTION_TYPES.LINKEDIN)[number]

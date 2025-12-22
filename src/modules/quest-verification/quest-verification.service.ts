@@ -56,8 +56,8 @@ export class QuestVerificationService implements OnModuleInit {
       switch (platform) {
         case 'FARCASTER':
           return this.verifyFarcaster(actionType, ctx);
-        case 'TWITTER':
-          return this.verifyTwitter(actionType, ctx);
+        case 'X':
+          return this.verifyX(actionType, ctx);
         case 'APP':
           return this.verifyApp(actionType, ctx);
         case 'GITHUB':
@@ -86,9 +86,6 @@ export class QuestVerificationService implements OnModuleInit {
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
-    // TODO: Re-enable after quest verification
-    return false;
-    /* Original logic:
     switch (actionType) {
       case 'FC_LINK':
         // Check if Farcaster is linked onchain
@@ -96,78 +93,40 @@ export class QuestVerificationService implements OnModuleInit {
         return this.evmLib.isSocialLinked(ctx.tokenId, 'farcaster');
 
       case 'FC_SHARE':
-        // Verify user has shared on Farcaster (check recent casts)
-        if (!this.neynarClient || !ctx.fid) {
-          this.logger.warn('Cannot verify FC_SHARE: missing Neynar or FID');
-          return false;
-        }
-        try {
-          const { casts } = await this.neynarClient.fetchCastsForUser({
-            fid: ctx.fid,
-            limit: 5,
-          });
-          return casts.some((cast) => {
-            const text = cast.text.toLowerCase();
-            return text.includes('basecard') || text.includes('minted my');
-          });
-        } catch (e) {
-          this.logger.error('FC_SHARE verification failed', e);
-          return false;
-        }
+        // TODO: Verify user has shared on Farcaster (check recent casts)
+        // Requires Neynar API + FID
+        return false;
 
       case 'FC_FOLLOW':
         // TODO: Check if user follows @basecardteam via Neynar API
         return false;
 
       case 'FC_POST_HASHTAG':
-        // Verify user posted with a specific hashtag (e.g., #BaseCardAdvent)
-        if (!this.neynarClient || !ctx.fid) {
-          this.logger.warn(
-            'Cannot verify FC_POST_HASHTAG: missing Neynar or FID',
-          );
-          return false;
-        }
-        try {
-          const { casts } = await this.neynarClient.fetchCastsForUser({
-            fid: ctx.fid,
-            limit: 10,
-          });
-          // TODO: Make hashtag configurable via quest metadata
-          return casts.some((cast) =>
-            cast.text.toLowerCase().includes('#basecardadvent'),
-          );
-        } catch (e) {
-          this.logger.error('FC_POST_HASHTAG verification failed', e);
-          return false;
-        }
+        // TODO: Verify user posted with a specific hashtag
+        return false;
 
       default:
         return false;
     }
-    */
   }
 
-  private async verifyTwitter(
+  private async verifyX(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
-    // TODO: Re-enable after quest verification
-    return false;
-    /* Original logic:
     switch (actionType) {
       case 'X_LINK':
-        // Check if Twitter is linked onchain
+        // Check if X is linked onchain
         if (!ctx.tokenId) return false;
-        return this.evmLib.isSocialLinked(ctx.tokenId, 'twitter');
+        return this.evmLib.isSocialLinked(ctx.tokenId, 'x');
 
       case 'X_FOLLOW':
-        // TODO: Implement Twitter API follow check (requires OAuth)
+        // TODO: Implement X API follow check (requires OAuth)
         return false;
 
       default:
         return false;
     }
-    */
   }
 
   private async verifyApp(
@@ -227,9 +186,6 @@ export class QuestVerificationService implements OnModuleInit {
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
-    // TODO: Re-enable after quest verification
-    return false;
-    /* Original logic:
     switch (actionType) {
       case 'GH_LINK':
         if (!ctx.tokenId) return false;
@@ -237,16 +193,12 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
-    */
   }
 
   private async verifyLinkedin(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
-    // TODO: Re-enable after quest verification
-    return false;
-    /* Original logic:
     switch (actionType) {
       case 'LI_LINK':
         if (!ctx.tokenId) return false;
@@ -254,16 +206,12 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
-    */
   }
 
   private async verifyBasename(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
-    // TODO: Re-enable after quest verification
-    return false;
-    /* Original logic:
     switch (actionType) {
       case 'BASE_LINK_NAME':
         if (!ctx.tokenId) return false;
@@ -271,16 +219,12 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
-    */
   }
 
   private async verifyWebsite(
     actionType: ActionType,
     ctx: VerificationContext,
   ): Promise<boolean> {
-    // TODO: Re-enable after quest verification
-    return false;
-    /* Original logic:
     switch (actionType) {
       case 'WEB_LINK':
         if (!ctx.tokenId) return false;
@@ -288,6 +232,5 @@ export class QuestVerificationService implements OnModuleInit {
       default:
         return false;
     }
-    */
   }
 }

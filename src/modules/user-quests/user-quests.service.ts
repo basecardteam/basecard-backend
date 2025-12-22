@@ -9,7 +9,6 @@ import * as schema from '../../db/schema';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq, and } from 'drizzle-orm';
 import { UsersService } from '../users/users.service';
-import { ClaimQuestDto } from '../quests/dto/claim-quest.dto';
 import { QuestVerificationService } from '../quest-verification/quest-verification.service';
 import { Platform, ActionType } from '../quests/quest-types';
 
@@ -116,13 +115,15 @@ export class UserQuestsService {
   /**
    * Claim a quest reward after verifying on-chain conditions
    */
-  async claimQuest(claimQuestDto: ClaimQuestDto): Promise<{
+  async claimQuest(
+    questId: string,
+    address: string,
+    fid?: number,
+  ): Promise<{
     verified: boolean;
     rewarded: number;
     newTotalPoints: number;
   }> {
-    const { address, questId } = claimQuestDto;
-
     // 1. Find the quest by ID
     const quest = await this.db.query.quests.findFirst({
       where: eq(schema.quests.id, questId),
@@ -165,11 +166,18 @@ export class UserQuestsService {
       };
     }
 
-    // 4. Verify quest condition using QuestVerificationService
+    // 4. Check if quest requires FID but user logged in with wallet
+    if (quest.platform === 'FARCASTER' && !fid) {
+      throw new BadRequestException(
+        'This quest requires Farcaster login. Wallet login cannot complete this quest.',
+      );
+    }
+
+    // 5. Verify quest condition using QuestVerificationService
     const isVerified = await this.questVerificationService.verify(
       quest.platform as Platform,
       quest.actionType as ActionType,
-      { address, fid: claimQuestDto.fid },
+      { address, fid },
     );
 
     if (!isVerified) {

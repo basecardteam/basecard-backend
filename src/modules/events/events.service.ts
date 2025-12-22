@@ -23,6 +23,7 @@ import { baseSepolia } from 'viem/chains';
 
 import { AppConfigService } from '../../app/configs/app-config.service';
 import { EvmLib } from '../blockchain/evm.lib';
+import { IpfsService, getBaseCardFilename } from '../ipfs/ipfs.service';
 
 // Event ABIs
 const EVENT_ABIS = [
@@ -53,8 +54,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private basecardsService: BasecardsService,
     private appConfigService: AppConfigService,
-    private usersService: UsersService,
     private evmLib: EvmLib,
+    private ipfsService: IpfsService,
   ) {
     this.contractAddress = this.appConfigService.baseCardContractAddress;
     const wsUrls = this.appConfigService.baseWsRpcUrls;
@@ -427,6 +428,26 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Updated card ${user.card.id} with onchain data for token ${tokenId}`,
       );
+
+      // 6. Cleanup old IPFS files, keeping only the latest one
+      if (onchainData.imageUri) {
+        const currentCid = onchainData.imageUri.startsWith('ipfs://')
+          ? onchainData.imageUri.replace('ipfs://', '')
+          : onchainData.imageUri.split('/ipfs/')[1];
+
+        if (currentCid) {
+          const filename = getBaseCardFilename(ownerAddress);
+          const result = await this.ipfsService.deleteOldFilesByName(
+            filename,
+            currentCid,
+          );
+          if (result.deletedCount > 0) {
+            this.logger.log(
+              `Cleaned up ${result.deletedCount} old IPFS files for ${ownerAddress}`,
+            );
+          }
+        }
+      }
     } catch (error) {
       this.logger.error(
         `Error processing BaseCardEdited for token ${tokenId}`,

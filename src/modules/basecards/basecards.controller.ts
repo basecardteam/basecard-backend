@@ -51,7 +51,20 @@ export class BasecardsController {
     if (!walletAddress) {
       throw new ForbiddenException('Wallet address not found in token');
     }
+
     const card = await this.basecardsService.findByAddress(walletAddress);
+
+    // Cleanup incomplete card if exists (tokenId null but no onchain mint)
+    if (card && card.tokenId === null) {
+      const hasMinted =
+        await this.basecardsService.checkHasMinted(walletAddress);
+      if (!hasMinted) {
+        this.logger.log(`Cleaning up incomplete card for ${walletAddress}`);
+        await this.basecardsService.removeByAddress(walletAddress);
+        return null; // Card was incomplete, return null
+      }
+    }
+
     return card;
   }
 
@@ -69,10 +82,15 @@ export class BasecardsController {
     @Body() createBasecardDto: CreateBasecardDto,
     @Request() req,
   ) {
+    // 디버그: 두 주소 비교
+    this.logger.debug(
+      `Address check: JWT=${req.user?.walletAddress}, DTO=${createBasecardDto.address}`,
+    );
+
     // 본인 확인
     if (
       req.user.walletAddress?.toLowerCase() !==
-      createBasecardDto.address.toLowerCase()
+      createBasecardDto.address?.toLowerCase()
     ) {
       throw new ForbiddenException('You can only create your own card');
     }

@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { AppConfigService } from './app/configs/app-config.service';
 import { TransformInterceptor } from './app/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './app/interceptors/logging.interceptor';
 import { HttpExceptionFilter } from './app/filters/http-exception.filter';
 import { CustomLogger } from './app/logger/custom.logger';
 
@@ -25,7 +26,10 @@ async function bootstrap() {
     type: VersioningType.URI,
     defaultVersion: '1',
   });
-  app.useGlobalInterceptors(new TransformInterceptor());
+  app.useGlobalInterceptors(
+    new TransformInterceptor(),
+    new LoggingInterceptor(),
+  );
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const config = new DocumentBuilder()

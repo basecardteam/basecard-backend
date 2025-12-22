@@ -10,7 +10,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 const PLATFORMS = [
   'FARCASTER',
-  'TWITTER',
+  'X',
   'BASENAME',
   'APP',
   'GITHUB',

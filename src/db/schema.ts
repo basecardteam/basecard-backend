@@ -115,7 +115,7 @@ export const pointLogs = pgTable('point_logs', {
 // --------------------------------------------------------------------------
 export const platformEnum = pgEnum('platform', [
   'FARCASTER',
-  'TWITTER',
+  'X',
   'BASENAME',
   'APP',
   'GITHUB',
