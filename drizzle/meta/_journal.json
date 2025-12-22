@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1766215379726,
-      "tag": "0000_even_ma_gnuci",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1766299403544,
-      "tag": "0001_curious_abomination",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1766385779946,
-      "tag": "0002_overrated_ser_duncan",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1766408425475,
-      "tag": "0003_next_maximus",
+      "when": 1766418064391,
+      "tag": "0000_stale_gabe_jones",
       "breakpoints": true
     }
   ]
