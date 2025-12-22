@@ -1,0 +1,31 @@
+/**
+ * Farcaster profile from Neynar API
+ */
+export interface FarcasterProfile {
+  fid: number;
+  username: string;
+  display_name: string;
+  pfp_url: string;
+}
+export interface BasecardListItem {
+  id: string;
+  userId: string;
+  nickname: string | null;
+  role: string | null;
+  bio: string | null;
+  socials: unknown;
+  tokenId: number | null;
+  imageUri: string | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+/**
+ * Extended response type for single basecard (findOne)
+ * Includes user address, FID, and Farcaster profile
+ */
+export interface BasecardDetail extends BasecardListItem {
+  address: string;
+  fid: number | null;
+  farcasterProfile: FarcasterProfile | null;
+}

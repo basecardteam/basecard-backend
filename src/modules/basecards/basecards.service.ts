@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
   Logger,
@@ -15,6 +16,8 @@ import { IpfsService, getBaseCardFilename } from '../ipfs/ipfs.service';
 import { ImageService } from './services/image.service';
 import { EvmLib } from '../blockchain/evm.lib';
 import { ConfigService } from '@nestjs/config';
+import { UsersService, FarcasterProfile } from '../users/users.service';
+import { BasecardListItem, BasecardDetail } from './types/basecard.types';
 
 @Injectable()
 export class BasecardsService {
@@ -26,6 +29,8 @@ export class BasecardsService {
     private imageService: ImageService,
     private evmLib: EvmLib,
     private configService: ConfigService,
+    @Inject(forwardRef(() => UsersService))
+    private usersService: UsersService,
   ) {}
 
   async checkHasMinted(address: string): Promise<boolean> {
@@ -175,9 +180,6 @@ export class BasecardsService {
 
   async findAll(limit: number = 50, offset: number = 0) {
     const cards = await this.db.query.basecards.findMany({
-      with: {
-        user: true,
-      },
       limit,
       offset,
       orderBy: (basecards, { desc }) => [desc(basecards.createdAt)],
@@ -189,7 +191,6 @@ export class BasecardsService {
       nickname: card.nickname,
       role: card.role,
       bio: card.bio,
-      address: card.user.walletAddress,
       socials: card.socials,
       tokenId: card.tokenId,
       imageUri: card.imageUri,
@@ -198,7 +199,7 @@ export class BasecardsService {
     }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<BasecardDetail | null> {
     const card = await this.db.query.basecards.findFirst({
       where: eq(schema.basecards.id, id),
       with: {
@@ -210,6 +211,14 @@ export class BasecardsService {
       return null;
     }
 
+    // Fetch Farcaster profile if user has FID
+    let farcasterProfile: FarcasterProfile | null = null;
+    if (card.user.fid) {
+      farcasterProfile = await this.usersService.fetchFarcasterProfile(
+        card.user.fid,
+      );
+    }
+
     return {
       id: card.id,
       userId: card.userId,
@@ -217,6 +226,8 @@ export class BasecardsService {
       role: card.role,
       bio: card.bio,
       address: card.user.walletAddress,
+      fid: card.user.fid,
+      farcasterProfile,
       socials: card.socials,
       tokenId: card.tokenId,
       imageUri: card.imageUri,

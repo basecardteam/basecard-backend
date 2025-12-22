@@ -44,6 +44,16 @@ export class UsersController {
     return this.usersService.findAll(role);
   }
 
+  @Get('farcaster/:fid')
+  async getFarcasterProfile(@Param('fid') fid: string) {
+    this.logger.debug(`Fetching Farcaster profile for FID: ${fid}`);
+    const profile = await this.usersService.fetchFarcasterProfile(Number(fid));
+    if (!profile) {
+      return { error: 'User not found' };
+    }
+    return profile;
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     this.logger.debug(`Finding user with id: ${id}`);

@@ -7,17 +7,66 @@ import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { EvmLib } from '../blockchain/evm.lib';
 import { BasecardsService } from '../basecards/basecards.service';
+import { AppConfigService } from '../../app/configs/app-config.service';
+import { FarcasterProfile } from '../basecards/types/basecard.types';
+
+// Re-export for backward compatibility
+export type { FarcasterProfile };
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private readonly NEYNAR_API_URL =
+    'https://api.neynar.com/v2/farcaster/user/bulk';
 
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private evmLib: EvmLib,
     @Inject(forwardRef(() => BasecardsService))
     private basecardsService: BasecardsService,
+    private appConfigService: AppConfigService,
   ) {}
+
+  /**
+   * Fetch Farcaster profile from Neynar API by FID
+   */
+  async fetchFarcasterProfile(fid: number): Promise<FarcasterProfile | null> {
+    const apiKey = this.appConfigService.neynarApiKey;
+    if (!apiKey) {
+      this.logger.error('NEYNAR_API_KEY is not configured');
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${this.NEYNAR_API_URL}?fids=${fid}`, {
+        headers: {
+          'x-api-key': apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.error(`Neynar API error: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
+
+      if (!data.users || data.users.length === 0) {
+        return null;
+      }
+
+      const user = data.users[0];
+      return {
+        fid: user.fid,
+        username: user.username,
+        display_name: user.display_name,
+        pfp_url: user.pfp_url,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching Farcaster profile:', error);
+      return null;
+    }
+  }
 
   /**
    * Create or find user by wallet address
