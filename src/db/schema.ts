@@ -54,6 +54,10 @@ export const userWallets = pgTable(
     clientType: clientTypeEnum('client_type').notNull(),
     clientFid: integer('client_fid'), // Farcaster: 9152, BaseApp: 309857
 
+    // Miniapp status
+    miniappAdded: boolean('miniapp_added').default(false),
+    notificationEnabled: boolean('notification_enabled').default(false),
+
     // Notification settings (from Farcaster webhook)
     notificationToken: varchar('notification_token', { length: 255 }),
     notificationUrl: varchar('notification_url', { length: 512 }),

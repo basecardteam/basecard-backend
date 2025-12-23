@@ -1,8 +1,12 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EvmLib } from '../blockchain/evm.lib';
 import { AppConfigService } from '../../app/configs/app-config.service';
 import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
 import { Platform, ActionType } from '../quests/quest-types';
+import { DRIZZLE } from '../../db/db.module';
+import * as schema from '../../db/schema';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { eq } from 'drizzle-orm';
 
 /**
  * Platform-ActionType Verification Matrix:
@@ -26,6 +30,7 @@ export class QuestVerificationService implements OnModuleInit {
   private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(
+    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private evmLib: EvmLib,
     private appConfigService: AppConfigService,
   ) {}
@@ -143,18 +148,16 @@ export class QuestVerificationService implements OnModuleInit {
         return ctx.tokenId !== undefined && ctx.tokenId > 0;
 
       case 'APP_NOTIFICATION':
-        // TODO: Check notification enabled status from DB or Farcaster
-        return false;
+        // Check notificationEnabled flag from user_wallets
+        return this.checkUserWalletFlag(ctx.address, 'notificationEnabled');
 
       case 'APP_DAILY_CHECKIN':
         // TODO: Implement daily check-in logic (client calls this endpoint)
         return false;
 
       case 'APP_ADD_MINIAPP':
-        // Verified client-side when user calls sdk.actions.addMiniApp()
-        // Frontend should call claim after successful addMiniApp
-        // This is optimistic - frontend reports success
-        return false;
+        // Check miniappAdded flag from user_wallets
+        return this.checkUserWalletFlag(ctx.address, 'miniappAdded');
 
       case 'APP_REFERRAL':
         // TODO: Check referral table if invitee has minted
@@ -288,5 +291,29 @@ export class QuestVerificationService implements OnModuleInit {
       this.logger.error('Error checking Farcaster follow:', error);
       return false;
     }
+  }
+
+  /**
+   * Check if user has a specific flag enabled in user_wallets
+   */
+  private async checkUserWalletFlag(
+    address: string,
+    flag: 'miniappAdded' | 'notificationEnabled',
+  ): Promise<boolean> {
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.walletAddress, address.toLowerCase()),
+    });
+
+    if (!user) {
+      this.logger.debug(`User not found for address ${address}`);
+      return false;
+    }
+
+    const wallets = await this.db.query.userWallets.findMany({
+      where: eq(schema.userWallets.userId, user.id),
+    });
+
+    // Return true if any wallet has the flag enabled
+    return wallets.some((w) => w[flag] === true);
   }
 }

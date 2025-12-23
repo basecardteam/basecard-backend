@@ -38,7 +38,7 @@ export class WebhookService {
    */
   async handleEvent(
     fid: number,
-    appFid: number | undefined,
+    appFid: number,
     event: WebhookEvent,
   ): Promise<{ success: boolean; message: string }> {
     const clientName = this.getClientName(appFid);
@@ -76,23 +76,25 @@ export class WebhookService {
    */
   private async handleMiniappAdded(
     fid: number,
-    appFid: number | undefined,
+    appFid: number,
     event: WebhookEvent,
   ): Promise<{ success: boolean; message: string }> {
     this.logger.log(
       `User FID ${fid} added miniapp from ${this.getClientName(appFid)}`,
     );
 
-    if (event.notificationDetails) {
-      await this.saveNotificationToken(
-        fid,
-        appFid,
-        event.notificationDetails.token,
-        event.notificationDetails.url,
-      );
-    }
+    // Update wallet status and save notification token if present
+    await this.updateWalletStatus(fid, appFid, {
+      miniappAdded: true,
+      notificationEnabled: !!event.notificationDetails,
+      notificationToken: event.notificationDetails?.token,
+      notificationUrl: event.notificationDetails?.url,
+    });
 
     await this.markQuestClaimable(fid, 'APP_ADD_MINIAPP');
+    if (event.notificationDetails) {
+      await this.markQuestClaimable(fid, 'APP_NOTIFICATION');
+    }
 
     return { success: true, message: 'Miniapp added processed' };
   }
@@ -108,7 +110,10 @@ export class WebhookService {
       `User FID ${fid} removed miniapp from ${this.getClientName(appFid)}`,
     );
 
-    await this.clearNotificationTokens(fid, appFid);
+    // Only disable the flag, keep the token for potential re-add
+    await this.updateWalletStatus(fid, appFid as number, {
+      miniappAdded: false,
+    });
 
     return { success: true, message: 'Miniapp removed processed' };
   }
@@ -154,9 +159,73 @@ export class WebhookService {
       `User FID ${fid} disabled notifications from ${this.getClientName(appFid)}`,
     );
 
-    await this.clearNotificationTokens(fid, appFid);
+    // Only disable the flag, keep the token for potential re-enable
+    await this.updateWalletStatus(fid, appFid as number, {
+      notificationEnabled: false,
+    });
 
     return { success: true, message: 'Notifications disabled processed' };
+  }
+
+  /**
+   * Update wallet status flags and notification token
+   */
+  private async updateWalletStatus(
+    fid: number,
+    appFid: number,
+    updates: {
+      miniappAdded?: boolean;
+      notificationEnabled?: boolean;
+      notificationToken?: string;
+      notificationUrl?: string;
+    },
+  ): Promise<void> {
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.fid, fid),
+    });
+
+    if (!user) {
+      this.logger.warn(`User not found for FID ${fid}`);
+      return;
+    }
+
+    const wallets = await this.db.query.userWallets.findMany({
+      where: eq(schema.userWallets.userId, user.id),
+    });
+
+    if (wallets.length === 0) {
+      this.logger.warn(`No wallets found for user ${user.id}`);
+      return;
+    }
+
+    // Find matching wallet by appFid or use the first one
+    let targetWallet = wallets[0];
+    const matchingWallet = wallets.find((w) => w.clientFid === appFid);
+    if (matchingWallet) {
+      targetWallet = matchingWallet;
+    }
+
+    await this.db
+      .update(schema.userWallets)
+      .set({
+        ...(updates.miniappAdded !== undefined && {
+          miniappAdded: updates.miniappAdded,
+        }),
+        ...(updates.notificationEnabled !== undefined && {
+          notificationEnabled: updates.notificationEnabled,
+        }),
+        ...(updates.notificationToken !== undefined && {
+          notificationToken: updates.notificationToken,
+        }),
+        ...(updates.notificationUrl !== undefined && {
+          notificationUrl: updates.notificationUrl,
+        }),
+      })
+      .where(eq(schema.userWallets.id, targetWallet.id));
+
+    this.logger.log(
+      `Updated wallet status for FID ${fid}: ${JSON.stringify(updates)}`,
+    );
   }
 
   /**

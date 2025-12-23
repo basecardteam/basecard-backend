@@ -73,7 +73,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 5;
+  private readonly maxReconnectAttempts = 0;
   private readonly reconnectDelay = 3000;
 
   private subscribeToAllEvents() {
