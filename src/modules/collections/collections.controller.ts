@@ -95,4 +95,16 @@ export class CollectionsController {
     }
     return this.collectionsService.remove(id);
   }
+
+  @Delete('by-card/:basecardId')
+  async removeByCardId(
+    @Request() req: any,
+    @Param('basecardId') basecardId: string,
+  ) {
+    const walletAddress = req.user?.walletAddress;
+    if (!walletAddress) {
+      throw new ForbiddenException('Wallet address not found in token');
+    }
+    return this.collectionsService.removeByCardId(walletAddress, basecardId);
+  }
 }

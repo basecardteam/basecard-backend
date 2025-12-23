@@ -118,4 +118,35 @@ export class CollectionsService {
       .delete(schema.collections)
       .where(eq(schema.collections.id, id));
   }
+
+  async removeByCardId(collectorAddress: string, basecardId: string) {
+    // 1. Find collector user
+    const collector = await this.usersService.findByAddress(collectorAddress);
+    if (!collector) {
+      throw new NotFoundException(
+        `Collector user not found: ${collectorAddress}`,
+      );
+    }
+
+    // 2. Find the collection
+    const collection = await this.db.query.collections.findFirst({
+      where: eq(schema.collections.collectedCardId, basecardId),
+    });
+
+    if (!collection) {
+      throw new NotFoundException(
+        `Collection not found for card: ${basecardId}`,
+      );
+    }
+
+    // 3. Verify ownership
+    if (collection.collectorUserId !== collector.id) {
+      throw new BadRequestException('Cannot delete other users collections');
+    }
+
+    // 4. Delete
+    return this.db
+      .delete(schema.collections)
+      .where(eq(schema.collections.id, collection.id));
+  }
 }
