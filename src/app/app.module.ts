@@ -17,7 +17,7 @@ import { ImagesModule } from '../modules/images/images.module';
 import { IpfsModule } from '../modules/ipfs/ipfs.module';
 import { BlockchainModule } from '../modules/blockchain/blockchain.module';
 import { QuestVerificationModule } from '../modules/quest-verification/quest-verification.module';
-import { FarcasterWebhookModule } from '../modules/farcaster-webhook/farcaster-webhook.module';
+import { WebhookModule } from '../modules/webhook/webhook.module';
 // middleware
 import { LoggingMiddleware } from './middleware/logging.middleware';
 
@@ -40,7 +40,7 @@ import { LoggingMiddleware } from './middleware/logging.middleware';
     IpfsModule,
     BlockchainModule,
     QuestVerificationModule,
-    FarcasterWebhookModule,
+    WebhookModule,
     AuthModule,
   ],
 })

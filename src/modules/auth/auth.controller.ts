@@ -40,7 +40,7 @@ export class AuthController {
   async loginFarcaster(
     @Body() body: { token: string; clientFid: number; loginAddress: string },
   ) {
-    this.logger.debug(`Farcaster login request: ${JSON.stringify(body)}`);
+    // this.logger.debug(`Farcaster login request: ${JSON.stringify(body)}`);
 
     const { token, clientFid, loginAddress } = body;
 

@@ -53,6 +53,11 @@ export const userWallets = pgTable(
     walletAddress: varchar('wallet_address', { length: 42 }).notNull(),
     clientType: clientTypeEnum('client_type').notNull(),
     clientFid: integer('client_fid'), // Farcaster: 9152, BaseApp: 309857
+
+    // Notification settings (from Farcaster webhook)
+    notificationToken: varchar('notification_token', { length: 255 }),
+    notificationUrl: varchar('notification_url', { length: 512 }),
+
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
@@ -60,6 +65,21 @@ export const userWallets = pgTable(
     index('user_wallets_client_type_idx').on(table.clientType),
   ],
 );
+
+// --------------------------------------------------------------------------
+// 1-2. Notification Logs (to prevent duplicate notifications)
+// --------------------------------------------------------------------------
+export const notificationLogs = pgTable('notification_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  notificationId: varchar('notification_id', { length: 100 })
+    .unique()
+    .notNull(),
+  userId: uuid('user_id').references(() => users.id),
+  type: varchar('type', { length: 50 }).notNull(), // e.g., 'new_collection', 'quest_completed'
+  targetId: varchar('target_id', { length: 100 }), // e.g., basecardId, questId
+  recipientCount: integer('recipient_count').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 // --------------------------------------------------------------------------
 // 2. Cards (Profile & NFT)

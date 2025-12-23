@@ -75,6 +75,16 @@ export class CollectionsService {
     }
   }
 
+  async findAllByUserId(userId: string) {
+    const collections = await this.db.query.collections.findMany({
+      where: eq(schema.collections.collectorUserId, userId),
+      with: {
+        collectedCard: true,
+      },
+    });
+    return collections.map((c) => c.collectedCard);
+  }
+
   async findAll(address?: string) {
     if (address) {
       const user = await this.usersService.findByAddress(address);

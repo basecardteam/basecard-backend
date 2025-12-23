@@ -23,13 +23,12 @@ export class UserQuestsService {
   ) {}
 
   /**
-   * Get all quests with user's completion status
-   * Automatically updates status for on-chain verifiable quests
+   * Get all quests with user's completion status (by userId)
    */
-  async findAllForUser(address: string, fid?: number) {
-    // Get user
+  async findAllForUserById(userId: string) {
+    // Get user with fid
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address.toLowerCase()),
+      where: eq(schema.users.id, userId),
     });
 
     // Get all active quests
@@ -39,7 +38,7 @@ export class UserQuestsService {
     });
 
     if (!user) {
-      // Return quests with default 'pending' status for non-logged-in users
+      // Return quests with default 'pending' status
       return quests.map((quest) => ({
         ...quest,
         status: 'pending' as const,
@@ -48,7 +47,7 @@ export class UserQuestsService {
 
     // Get user's quest statuses
     const userQuests = await this.db.query.userQuests.findMany({
-      where: eq(schema.userQuests.userId, user.id),
+      where: eq(schema.userQuests.userId, userId),
     });
 
     // Merge quest data with user status & Attempt auto-verification
@@ -57,19 +56,22 @@ export class UserQuestsService {
         const userQuest = userQuests.find((uq) => uq.questId === quest.id);
         let status = userQuest?.status || ('pending' as const);
 
-        // If not completed or claimable, try auto-verify for specific types
+        // If pending, try auto-verify
         if (status === 'pending') {
-          const autoClaimable = await this.tryAutoVerify(address, user, quest, {
-            fid,
-          });
+          const autoClaimable = await this.tryAutoVerify(
+            user.walletAddress,
+            user,
+            quest,
+            { fid: user.fid ?? undefined },
+          );
 
           if (autoClaimable) {
             this.logger.log(
-              `Auto-verified quest ${quest.actionType} for ${address}`,
+              `Auto-verified quest ${quest.actionType} for user ${userId}`,
             );
             status = 'claimable';
 
-            // Update DB to reflect claimable status to avoid re-checking every time
+            // Update DB to reflect claimable status
             await this.db
               .insert(schema.userQuests)
               .values({
@@ -79,18 +81,13 @@ export class UserQuestsService {
               })
               .onConflictDoUpdate({
                 target: [schema.userQuests.userId, schema.userQuests.questId],
-                set: {
-                  status: 'claimable',
-                },
+                set: { status: 'claimable' },
                 where: eq(schema.userQuests.status, 'pending'),
               });
           }
         }
 
-        return {
-          ...quest,
-          status,
-        };
+        return { ...quest, status };
       }),
     );
   }
@@ -114,11 +111,12 @@ export class UserQuestsService {
 
   /**
    * Claim a quest reward after verifying on-chain conditions
+   */ /**
+   * Claim quest by userId
    */
-  async claimQuest(
+  async claimQuestByUserId(
     questId: string,
-    address: string,
-    fid?: number,
+    userId: string,
   ): Promise<{
     verified: boolean;
     rewarded: number;
@@ -133,23 +131,23 @@ export class UserQuestsService {
       throw new BadRequestException(`Quest not found`);
     }
 
-    this.logger.debug(
-      `Claiming quest ${quest.title} (${questId}) for ${address}`,
-    );
-
-    // 2. Find the user
+    // 2. Find the user by ID
     const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address.toLowerCase()),
+      where: eq(schema.users.id, userId),
     });
 
     if (!user) {
       throw new BadRequestException('User not found');
     }
 
+    this.logger.debug(
+      `Claiming quest ${quest.title} (${questId}) for user ${userId}`,
+    );
+
     // 3. Check if already claimed
     const existingClaim = await this.db.query.userQuests.findFirst({
       where: and(
-        eq(schema.userQuests.userId, user.id),
+        eq(schema.userQuests.userId, userId),
         eq(schema.userQuests.questId, quest.id),
         eq(schema.userQuests.status, 'completed'),
       ),
@@ -157,7 +155,7 @@ export class UserQuestsService {
 
     if (existingClaim) {
       this.logger.debug(
-        `Quest ${quest.actionType} (${questId}) already claimed by ${address}`,
+        `Quest ${quest.actionType} (${questId}) already claimed by user ${userId}`,
       );
       return {
         verified: false,
@@ -166,8 +164,8 @@ export class UserQuestsService {
       };
     }
 
-    // 4. Check if quest requires FID but user logged in with wallet
-    if (quest.platform === 'FARCASTER' && !fid) {
+    // 4. Check if quest requires FID but user doesn't have one
+    if (quest.platform === 'FARCASTER' && !user.fid) {
       throw new BadRequestException(
         'This quest requires Farcaster login. Wallet login cannot complete this quest.',
       );
@@ -177,22 +175,21 @@ export class UserQuestsService {
     const isVerified = await this.questVerificationService.verify(
       quest.platform as Platform,
       quest.actionType as ActionType,
-      { address, fid },
+      { address: user.walletAddress, fid: user.fid ?? undefined },
     );
 
     if (!isVerified) {
       this.logger.debug(
-        `Quest ${quest.actionType} condition not met for ${address}`,
+        `Quest ${quest.actionType} condition not met for user ${userId}`,
       );
       throw new BadRequestException(
         `Quest ${quest.actionType} condition not met`,
       );
     }
 
-    // 5. Mark quest as completed and award points
+    // 6. Mark quest as completed and award points
     const updatedUser = await this.db.transaction(async (tx) => {
-      // Upsert userQuests status (could be pending or claimable before)
-      // Drizzle upsert with ON CONFLICT
+      // Upsert userQuests status
       await tx
         .insert(schema.userQuests)
         .values({
@@ -210,8 +207,8 @@ export class UserQuestsService {
         });
 
       // Award points
-      const updated = await this.usersService.increasePoints(
-        address,
+      const updated = await this.usersService.increasePointsByUserId(
+        userId,
         quest.rewardAmount,
         'QUEST_REWARD',
         quest.id,
@@ -221,7 +218,7 @@ export class UserQuestsService {
     });
 
     this.logger.log(
-      `Quest ${quest.actionType} claimed by ${address}: +${quest.rewardAmount} points`,
+      `Quest ${quest.actionType} claimed by user ${userId}: +${quest.rewardAmount} points`,
     );
 
     return {

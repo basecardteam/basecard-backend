@@ -21,6 +21,10 @@ export class QuestVerificationService implements OnModuleInit {
   private readonly logger = new Logger(QuestVerificationService.name);
   private neynarClient: NeynarAPIClient | null = null;
 
+  // In-memory cache for Neynar API results (TTL: 5 minutes)
+  private followCache = new Map<number, { result: boolean; expiry: number }>();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
   constructor(
     private evmLib: EvmLib,
     private appConfigService: AppConfigService,
@@ -98,8 +102,8 @@ export class QuestVerificationService implements OnModuleInit {
         return false;
 
       case 'FC_FOLLOW':
-        // TODO: Check if user follows @basecardteam via Neynar API
-        return false;
+        // Check if user follows @basecardteam via Neynar API
+        return this.checkFarcasterFollow(ctx.fid);
 
       case 'FC_POST_HASHTAG':
         // TODO: Verify user posted with a specific hashtag
@@ -231,6 +235,58 @@ export class QuestVerificationService implements OnModuleInit {
         return this.evmLib.isSocialLinked(ctx.tokenId, 'website');
       default:
         return false;
+    }
+  }
+
+  /**
+   * Check if user follows @basecardteam on Farcaster
+   * Uses Neynar API viewer_context.followed_by
+   */
+  private async checkFarcasterFollow(userFid?: number): Promise<boolean> {
+    const TEAM_FID = 1459788; // @basecardteam FID
+
+    if (!userFid) {
+      this.logger.debug('No user FID provided for follow check');
+      return false;
+    }
+
+    // Check cache first
+    const cached = this.followCache.get(userFid);
+    if (cached && cached.expiry > Date.now()) {
+      this.logger.debug(`Cache hit for FID ${userFid}: ${cached.result}`);
+      return cached.result;
+    }
+
+    if (!this.neynarClient) {
+      this.logger.error('Neynar client not initialized');
+      return false;
+    }
+
+    try {
+      const response = await this.neynarClient.fetchBulkUsers({
+        fids: [TEAM_FID],
+        viewerFid: userFid,
+      });
+
+      if (!response.users || response.users.length === 0) {
+        this.logger.warn(`Team FID ${TEAM_FID} not found`);
+        return false;
+      }
+
+      // viewer_context.following = true means the viewer (userFid) follows the target (TEAM_FID)
+      const isFollowing = response.users[0].viewer_context?.following === true;
+
+      // Cache the result
+      this.followCache.set(userFid, {
+        result: isFollowing,
+        expiry: Date.now() + this.CACHE_TTL_MS,
+      });
+
+      this.logger.debug(`User FID ${userFid} follows team: ${isFollowing}`);
+      return isFollowing;
+    } catch (error) {
+      this.logger.error('Error checking Farcaster follow:', error);
+      return false;
     }
   }
 }

@@ -250,6 +250,48 @@ export class UsersService {
     });
   }
 
+  async increasePointsByUserId(
+    userId: string,
+    points: number,
+    type:
+      | 'QUEST_REWARD'
+      | 'MINT_BONUS'
+      | 'REFERRAL'
+      | 'ADMIN_ADJUST' = 'ADMIN_ADJUST',
+    questId?: string,
+    eventId?: string,
+  ) {
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.id, userId),
+    });
+
+    if (!user) {
+      this.logger.warn(`User not found for points increase: ${userId}`);
+      throw new Error('User not found');
+    }
+
+    return await this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(schema.users)
+        .set({
+          totalPoints: user.totalPoints + points,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.users.id, userId))
+        .returning();
+
+      await tx.insert(schema.pointLogs).values({
+        userId: user.id,
+        amount: points,
+        type: type,
+        questId: questId,
+        eventId: eventId,
+      });
+
+      return updated;
+    });
+  }
+
   async updateByAddress(address: string, updateUserDto: UpdateUserDto) {
     const [updated] = await this.db
       .update(schema.users)

@@ -40,11 +40,11 @@ export class CollectionsController {
 
   @Get('me')
   findMyCollections(@Request() req: any) {
-    const walletAddress = req.user?.walletAddress;
-    if (!walletAddress) {
-      throw new ForbiddenException('Wallet address not found in token');
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
     }
-    return this.collectionsService.findAll(walletAddress);
+    return this.collectionsService.findAllByUserId(userId);
   }
 
   @Get(':id')

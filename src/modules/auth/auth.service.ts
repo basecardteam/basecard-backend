@@ -122,39 +122,65 @@ export class AuthService {
   ) {
     const safeLoginAddress = loginAddress.toLowerCase();
     const safeTokenAddress = tokenAddress.toLowerCase();
+    const isBaseApp = clientFid === 309857;
 
-    // Create or find user with FID (use loginAddress as primary)
-    let user = await this.usersService.findByAddress(safeLoginAddress);
+    // 1. Find user by FID (same Farcaster account, regardless of app)
+    let user = await this.usersService.findByFid(fid);
 
+    // 2. If not found, create new user
     if (!user) {
       const newUser = await this.usersService.create({
         walletAddress: safeLoginAddress,
         fid,
       });
       user = { ...newUser, card: null } as any;
-    } else if (!user.fid && fid) {
-      // Update FID if not set
-      await this.usersService.update(user.id, { fid } as any);
-      user.fid = fid;
-    }
 
-    // 1. Always add tokenAddress as 'farcaster' (clientFid=9152)
-    await this.usersService.addClientWallet(
-      user!.id,
-      safeTokenAddress,
-      'farcaster',
-      9152, // Farcaster fixed
-    );
-
-    // 2. Add loginAddress with the client's clientFid (if different from tokenAddress)
-    if (safeLoginAddress !== safeTokenAddress) {
-      const clientType = clientFid === 309857 ? 'baseapp' : 'farcaster';
+      // Add tokenAddress (Farcaster primary) to user_wallets
       await this.usersService.addClientWallet(
         user!.id,
-        safeLoginAddress,
-        clientType,
-        clientFid,
+        safeTokenAddress,
+        'farcaster',
+        9152,
       );
+
+      // If BaseApp login, also add loginAddress as baseapp wallet
+      if (isBaseApp && safeLoginAddress !== safeTokenAddress) {
+        await this.usersService.addClientWallet(
+          user!.id,
+          safeLoginAddress,
+          'baseapp',
+          clientFid,
+        );
+      }
+    } else {
+      // User exists - check existing wallets and add only if not tracked
+      const existingAddresses = (user.wallets || []).map((w) =>
+        w.walletAddress.toLowerCase(),
+      );
+
+      // Add tokenAddress (farcaster) if not exists
+      if (!existingAddresses.includes(safeTokenAddress)) {
+        await this.usersService.addClientWallet(
+          user.id,
+          safeTokenAddress,
+          'farcaster',
+          9152,
+        );
+      }
+
+      // Add loginAddress (baseapp) if BaseApp and not exists
+      if (
+        isBaseApp &&
+        safeLoginAddress !== safeTokenAddress &&
+        !existingAddresses.includes(safeLoginAddress)
+      ) {
+        await this.usersService.addClientWallet(
+          user.id,
+          safeLoginAddress,
+          'baseapp',
+          clientFid,
+        );
+      }
     }
 
     const payload = {

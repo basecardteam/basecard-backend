@@ -47,20 +47,22 @@ export class BasecardsController {
 
   @Get('me')
   async findMyCard(@Request() req) {
+    const userId = req.user?.userId;
     const walletAddress = req.user?.walletAddress;
-    if (!walletAddress) {
-      throw new ForbiddenException('Wallet address not found in token');
+
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
     }
 
-    const card = await this.basecardsService.findByAddress(walletAddress);
+    const card = await this.basecardsService.findByUserId(userId);
 
     // Cleanup incomplete card if exists (tokenId null but no onchain mint)
-    if (card && card.tokenId === null) {
+    if (card && card.tokenId === null && walletAddress) {
       const hasMinted =
         await this.basecardsService.checkHasMinted(walletAddress);
       if (!hasMinted) {
-        this.logger.log(`Cleaning up incomplete card for ${walletAddress}`);
-        await this.basecardsService.removeByAddress(walletAddress);
+        this.logger.log(`Cleaning up incomplete card for user ${userId}`);
+        await this.basecardsService.remove(card.id);
         return null; // Card was incomplete, return null
       }
     }

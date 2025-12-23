@@ -34,12 +34,12 @@ export class UserQuestsController {
     status: 200,
     description: 'List of quests with user completion status',
   })
-  async findMyQuests(@Request() req: any, @Query('fid') fid?: number) {
-    const walletAddress = req.user?.walletAddress;
-    if (!walletAddress) {
-      throw new ForbiddenException('Wallet address not found in token');
+  async findMyQuests(@Request() req: any) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
     }
-    return this.userQuestsService.findAllForUser(walletAddress, fid);
+    return this.userQuestsService.findAllForUserById(userId);
   }
 
   @Post('claim')
@@ -49,20 +49,17 @@ export class UserQuestsController {
     description: 'Quest claim result with verification status and points',
   })
   async claimQuest(@Request() req: any, @Body() claimQuestDto: ClaimQuestDto) {
-    const walletAddress = req.user?.walletAddress;
-    if (!walletAddress) {
-      throw new ForbiddenException('Wallet address not found in token');
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
     }
 
-    const fid = req.user?.fid;
-
     this.logger.log(
-      `Claim quest request: ${walletAddress} - ${claimQuestDto.questId}`,
+      `Claim quest request: userId=${userId} - ${claimQuestDto.questId}`,
     );
-    return this.userQuestsService.claimQuest(
+    return this.userQuestsService.claimQuestByUserId(
       claimQuestDto.questId,
-      walletAddress,
-      fid,
+      userId,
     );
   }
 }

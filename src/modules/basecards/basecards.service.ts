@@ -480,6 +480,15 @@ export class BasecardsService {
     return updated;
   }
 
+  async findByUserId(userId: string) {
+    return this.db.query.basecards.findFirst({
+      where: eq(schema.basecards.userId, userId),
+      with: {
+        user: true,
+      },
+    });
+  }
+
   async findByAddress(address: string) {
     const user = await this.db.query.users.findFirst({
       where: eq(schema.users.walletAddress, address.toLowerCase()),
