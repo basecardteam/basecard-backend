@@ -22,10 +22,10 @@ export interface BasecardListItem {
 
 /**
  * Extended response type for single basecard (findOne)
- * Includes user address, FID, and Farcaster profile
+ * Includes user address, FID, and Farcaster profile PFP URL
  */
 export interface BasecardDetail extends BasecardListItem {
   address: string;
   fid: number | null;
-  farcasterProfile: FarcasterProfile | null;
+  farcasterPfpUrl: string | null;
 }

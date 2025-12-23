@@ -86,13 +86,17 @@ export class BasecardsController {
   ) {
     // 디버그: 두 주소 비교
     this.logger.debug(
-      `Address check: JWT=${req.user?.walletAddress}, DTO=${createBasecardDto.address}`,
+      `Address check: JWT=${req.user?.walletAddress}, DTO=${createBasecardDto.address}, Role=${req.user?.role}`,
     );
 
-    // 본인 확인
+    // Admin can create cards for any user
+    const isAdmin = req.user?.role === 'admin';
+
+    // 본인 확인 (admin은 스킵)
     if (
+      !isAdmin &&
       req.user.walletAddress?.toLowerCase() !==
-      createBasecardDto.address?.toLowerCase()
+        createBasecardDto.address?.toLowerCase()
     ) {
       throw new ForbiddenException('You can only create your own card');
     }
@@ -138,6 +142,7 @@ export class BasecardsController {
       const result = await this.basecardsService.create(
         createBasecardDto,
         file,
+        { skipSimulation: isAdmin },
       );
 
       return result;

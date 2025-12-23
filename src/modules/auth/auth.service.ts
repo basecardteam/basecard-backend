@@ -183,6 +183,11 @@ export class AuthService {
       }
     }
 
+    // Prefetch and cache Farcaster PFP on login (fire-and-forget)
+    this.usersService.getCachedFarcasterPfp(user as any).catch((err) => {
+      this.logger.debug('Failed to prefetch Farcaster PFP:', err);
+    });
+
     const payload = {
       sub: user!.id,
       fid: user!.fid,

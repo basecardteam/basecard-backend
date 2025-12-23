@@ -69,6 +69,47 @@ export class UsersService {
   }
 
   /**
+   * Get cached Farcaster PFP URL with 1-hour TTL
+   * Updates cache if expired or missing
+   */
+  async getCachedFarcasterPfp(
+    user: typeof schema.users.$inferSelect,
+  ): Promise<string | null> {
+    if (!user.fid) return null;
+
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    // Check if cache is valid
+    if (
+      user.farcasterPfpUrl &&
+      user.farcasterPfpUpdatedAt &&
+      user.farcasterPfpUpdatedAt > oneHourAgo
+    ) {
+      return user.farcasterPfpUrl;
+    }
+
+    // Fetch fresh profile from Neynar
+    const profile = await this.fetchFarcasterProfile(user.fid);
+    if (!profile?.pfp_url) {
+      return user.farcasterPfpUrl || null; // Return stale cache if fetch fails
+    }
+
+    // Update cache in database (fire and forget)
+    this.db
+      .update(schema.users)
+      .set({
+        farcasterPfpUrl: profile.pfp_url,
+        farcasterPfpUpdatedAt: now,
+      })
+      .where(eq(schema.users.id, user.id))
+      .then(() => this.logger.debug(`Updated PFP cache for user ${user.id}`))
+      .catch((err) => this.logger.error('Failed to update PFP cache:', err));
+
+    return profile.pfp_url;
+  }
+
+  /**
    * Create or find user by wallet address
    * Optionally sets FID if provided
    */
@@ -171,8 +212,6 @@ export class UsersService {
       with: {
         card: true,
         wallets: true,
-        earnList: true,
-        collections: true,
       },
     });
   }

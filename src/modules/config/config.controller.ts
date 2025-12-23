@@ -11,6 +11,11 @@ class ContractConfigDto {
 @Controller('config')
 @ApiTags('Config')
 export class ConfigController {
+  // Cache config for 5 minutes (rarely changes)
+  private configCache: ContractConfigDto | null = null;
+  private configCacheExpiry = 0;
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
   constructor(private readonly configService: ConfigService) {}
 
   @Get()
@@ -25,7 +30,14 @@ export class ConfigController {
     type: ContractConfigDto,
   })
   getConfig(): ContractConfigDto {
-    return {
+    const now = Date.now();
+
+    // Return cached config if valid
+    if (this.configCache && this.configCacheExpiry > now) {
+      return this.configCache;
+    }
+
+    this.configCache = {
       contractAddress: this.configService.get<string>(
         'BASECARD_CONTRACT_ADDRESS',
         '',
@@ -36,5 +48,8 @@ export class ConfigController {
         'https://ipfs.io/ipfs',
       ),
     };
+    this.configCacheExpiry = now + this.CACHE_TTL_MS;
+
+    return this.configCache;
   }
 }

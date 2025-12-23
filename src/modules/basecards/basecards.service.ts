@@ -16,12 +16,27 @@ import { IpfsService, getBaseCardFilename } from '../ipfs/ipfs.service';
 import { ImageService } from './services/image.service';
 import { EvmLib } from '../blockchain/evm.lib';
 import { ConfigService } from '@nestjs/config';
-import { UsersService, FarcasterProfile } from '../users/users.service';
-import { BasecardListItem, BasecardDetail } from './types/basecard.types';
+import { UsersService } from '../users/users.service';
+import { BasecardDetail } from './types/basecard.types';
 
 @Injectable()
 export class BasecardsService {
   private readonly logger = new Logger(BasecardsService.name);
+
+  // In-memory cache for findAll (5 minute TTL)
+  private findAllCache: {
+    data: any[] | null;
+    expiry: number;
+    key: string;
+  } = { data: null, expiry: 0, key: '' };
+
+  // In-memory cache for findOne (5 minute TTL)
+  private findOneCache = new Map<
+    string,
+    { data: BasecardDetail; expiry: number }
+  >();
+
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
@@ -40,6 +55,7 @@ export class BasecardsService {
   async create(
     createBasecardDto: CreateBasecardDto,
     file: Express.Multer.File,
+    options?: { skipSimulation?: boolean },
   ) {
     // Check if user has already minted (Contract check)
     const hasMinted = await this.checkHasMinted(createBasecardDto.address);
@@ -84,18 +100,21 @@ export class BasecardsService {
     const socialKeys = filteredSocials.map(([key]) => key);
     const socialValues = filteredSocials.map(([, value]) => value);
 
-    await this.evmLib.simulateMintBaseCard(
-      createBasecardDto.address,
-      {
-        imageUri: imageURI,
-        nickname: createBasecardDto.nickname,
-        role: createBasecardDto.role,
-        bio: createBasecardDto.bio || '',
-      },
-      socialKeys,
-      socialValues,
-      initialDelegates,
-    );
+    // Simulate Contract Call (Backend Validation) - skip for admin
+    if (!options?.skipSimulation) {
+      await this.evmLib.simulateMintBaseCard(
+        createBasecardDto.address,
+        {
+          imageUri: imageURI,
+          nickname: createBasecardDto.nickname,
+          role: createBasecardDto.role,
+          bio: createBasecardDto.bio || '',
+        },
+        socialKeys,
+        socialValues,
+        initialDelegates,
+      );
+    }
 
     const card = await this.db.transaction(async (tx) => {
       const [newCard] = await tx
@@ -179,13 +198,26 @@ export class BasecardsService {
   }
 
   async findAll(limit: number = 50, offset: number = 0) {
+    const cacheKey = `${limit}-${offset}`;
+    const now = Date.now();
+
+    // Return cached data if valid
+    if (
+      this.findAllCache.data &&
+      this.findAllCache.key === cacheKey &&
+      this.findAllCache.expiry > now
+    ) {
+      this.logger.debug('Returning cached findAll result');
+      return this.findAllCache.data;
+    }
+
     const cards = await this.db.query.basecards.findMany({
       limit,
       offset,
       orderBy: (basecards, { desc }) => [desc(basecards.createdAt)],
     });
 
-    return cards.map((card) => ({
+    const result = cards.map((card) => ({
       id: card.id,
       userId: card.userId,
       nickname: card.nickname,
@@ -197,9 +229,27 @@ export class BasecardsService {
       createdAt: card.createdAt,
       updatedAt: card.updatedAt,
     }));
+
+    // Update cache
+    this.findAllCache = {
+      data: result,
+      expiry: now + this.CACHE_TTL_MS,
+      key: cacheKey,
+    };
+
+    return result;
   }
 
   async findOne(id: string): Promise<BasecardDetail | null> {
+    const now = Date.now();
+
+    // Check cache first
+    const cached = this.findOneCache.get(id);
+    if (cached && cached.expiry > now) {
+      this.logger.debug(`Returning cached findOne result for ${id}`);
+      return cached.data;
+    }
+
     const card = await this.db.query.basecards.findFirst({
       where: eq(schema.basecards.id, id),
       with: {
@@ -211,15 +261,10 @@ export class BasecardsService {
       return null;
     }
 
-    // Fetch Farcaster profile if user has FID
-    let farcasterProfile: FarcasterProfile | null = null;
-    if (card.user.fid) {
-      farcasterProfile = await this.usersService.fetchFarcasterProfile(
-        card.user.fid,
-      );
-    }
+    // Get cached Farcaster PFP (with 1-hour TTL)
+    const pfpUrl = await this.usersService.getCachedFarcasterPfp(card.user);
 
-    return {
+    const result: BasecardDetail = {
       id: card.id,
       userId: card.userId,
       nickname: card.nickname,
@@ -227,13 +272,21 @@ export class BasecardsService {
       bio: card.bio,
       address: card.user.walletAddress,
       fid: card.user.fid,
-      farcasterProfile,
+      farcasterPfpUrl: pfpUrl,
       socials: card.socials,
       tokenId: card.tokenId,
       imageUri: card.imageUri,
       createdAt: card.createdAt,
       updatedAt: card.updatedAt,
     };
+
+    // Update cache
+    this.findOneCache.set(id, {
+      data: result,
+      expiry: now + this.CACHE_TTL_MS,
+    });
+
+    return result;
   }
 
   async update(id: string, updateBasecardDto: UpdateBasecardDto) {

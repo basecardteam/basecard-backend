@@ -43,37 +43,43 @@ Content-Type: application/json
 ### USER API
 ### ===========================================
 
-### Get or Create User for alice
+### Create Alice User
+# @name createAlice
 POST {{baseUrl}}/v1/users
+Authorization: Bearer {{devToken}}
 Content-Type: application/json
 
 {
   "walletAddress": "{{aliceAddress}}"
 }
 
-### Get or Create User for bob 
+### Create Bob User
+# @name createBob
 POST {{baseUrl}}/v1/users
+Authorization: Bearer {{devToken}}
 Content-Type: application/json
 
 {
   "walletAddress": "{{bobAddress}}"
 }
 
+### Get Alice User by ID (using saved response)
+@aliceId = 7d18b1db-12de-4a58-b798-56ce5bf65e09
+GET {{baseUrl}}/v1/users/{{aliceId}}
+Authorization: Bearer {{devToken}}
+
+### Get Bob User by ID (using saved response)
+GET {{baseUrl}}/v1/users/{{createBob.response.body.id}}
+Authorization: Bearer {{devToken}}
+
 ### Get All Users
 GET {{baseUrl}}/v1/users
 Authorization: Bearer {{devToken}}
 
-### Get User by ID (includes wallets)
-# Use userId from login response or user creation
-# Recent user from logs: dcc751cf-cfa9-469d-801e-ae25632a309a
-@testUserId = dcc751cf-cfa9-469d-801e-ae25632a309a
-GET {{baseUrl}}/v1/users/{{testUserId}}
-Authorization: Bearer {{devToken}}
-
-### Get My User Info (includes wallets, card, collections)
-# Returns user with wallets array to verify user_wallets records
+### Get My User Info (includes wallets, card)
 GET {{baseUrl}}/v1/users/me
 Authorization: Bearer {{devToken}}
+
 
 ### ===========================================
 ### USER WALLETS API
@@ -117,6 +123,7 @@ Content-Type: application/json
 
 ### Create Basecard (Multipart)
 POST {{baseUrl}}/v1/basecards
+Authorization: Bearer {{devToken}}
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary

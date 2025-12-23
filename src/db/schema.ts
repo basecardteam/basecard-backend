@@ -36,6 +36,10 @@ export const users = pgTable('users', {
   isNewUser: boolean('is_new_user').default(true),
   hasMintedCard: boolean('has_minted_card').default(false),
 
+  // Farcaster profile cache (1-hour TTL)
+  farcasterPfpUrl: varchar('farcaster_pfp_url', { length: 512 }),
+  farcasterPfpUpdatedAt: timestamp('farcaster_pfp_updated_at'),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
