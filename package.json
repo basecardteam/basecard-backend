@@ -27,7 +27,7 @@
     "reset:bucket": "ts-node scripts/reset-bucket.ts",
     "reset:all": "npm run reset:db && npm run reset:bucket && npm run db:generate && npm run db:migrate && npm run db:seed",
     "db:check": "ts-node scripts/check-db-connection.ts",
-    "db:seed": "ts-node scripts/seed-quests.ts",
+    "db:seed": "ts-node scripts/seed-quests.ts && npm run add-admin-address",
     "test:services": "ts-node scripts/test-services.ts",
     "test:fetch-casts": "ts-node scripts/test-fetch-casts.ts",
     "test:auth-flow-user": "ts-node scripts/test-auth-flow-user.ts",

@@ -34,8 +34,11 @@ export class UsersController {
 
   @Get('me')
   async findMe(@Request() req) {
+    const start = Date.now();
     this.logger.log(`Finding current user: ${req.user?.userId}`);
-    return this.usersService.findOne(req.user?.userId);
+    const result = await this.usersService.findOne(req.user?.userId);
+    this.logger.log(`[TIMING] findMe total: ${Date.now() - start}ms`);
+    return result;
   }
 
   @Get()

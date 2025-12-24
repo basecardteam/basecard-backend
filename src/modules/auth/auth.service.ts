@@ -1,7 +1,14 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
+import { UserQuestsService } from '../user-quests/user-quests.service';
 import { verifyMessage } from 'viem';
 import { Errors, createClient } from '@farcaster/quick-auth';
 
@@ -12,6 +19,8 @@ export class AuthService {
 
   constructor(
     private usersService: UsersService,
+    @Inject(forwardRef(() => UserQuestsService))
+    private userQuestsService: UserQuestsService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -120,36 +129,49 @@ export class AuthService {
     clientFid: number,
     tokenAddress: string,
   ) {
+    const totalStart = Date.now();
     const safeLoginAddress = loginAddress.toLowerCase();
     const safeTokenAddress = tokenAddress.toLowerCase();
     const isBaseApp = clientFid === 309857;
 
     // 1. Find user by FID (same Farcaster account, regardless of app)
+    let stepStart = Date.now();
     let user = await this.usersService.findByFid(fid);
+    this.logger.debug(`[TIMING] findByFid: ${Date.now() - stepStart}ms`);
 
     // 2. If not found, create new user
     if (!user) {
+      stepStart = Date.now();
       const newUser = await this.usersService.create({
         walletAddress: safeLoginAddress,
         fid,
       });
+      this.logger.debug(`[TIMING] create user: ${Date.now() - stepStart}ms`);
       user = { ...newUser, card: null } as any;
 
       // Add tokenAddress (Farcaster primary) to user_wallets
+      stepStart = Date.now();
       await this.usersService.addClientWallet(
         user!.id,
         safeTokenAddress,
         'farcaster',
         9152,
       );
+      this.logger.debug(
+        `[TIMING] addClientWallet(farcaster): ${Date.now() - stepStart}ms`,
+      );
 
       // If BaseApp login, also add loginAddress as baseapp wallet
       if (isBaseApp && safeLoginAddress !== safeTokenAddress) {
+        stepStart = Date.now();
         await this.usersService.addClientWallet(
           user!.id,
           safeLoginAddress,
           'baseapp',
           clientFid,
+        );
+        this.logger.debug(
+          `[TIMING] addClientWallet(baseapp): ${Date.now() - stepStart}ms`,
         );
       }
     } else {
@@ -160,11 +182,15 @@ export class AuthService {
 
       // Add tokenAddress (farcaster) if not exists
       if (!existingAddresses.includes(safeTokenAddress)) {
+        stepStart = Date.now();
         await this.usersService.addClientWallet(
           user.id,
           safeTokenAddress,
           'farcaster',
           9152,
+        );
+        this.logger.debug(
+          `[TIMING] addClientWallet(farcaster): ${Date.now() - stepStart}ms`,
         );
       }
 
@@ -174,11 +200,15 @@ export class AuthService {
         safeLoginAddress !== safeTokenAddress &&
         !existingAddresses.includes(safeLoginAddress)
       ) {
+        stepStart = Date.now();
         await this.usersService.addClientWallet(
           user.id,
           safeLoginAddress,
           'baseapp',
           clientFid,
+        );
+        this.logger.debug(
+          `[TIMING] addClientWallet(baseapp): ${Date.now() - stepStart}ms`,
         );
       }
     }
@@ -188,12 +218,28 @@ export class AuthService {
       this.logger.debug('Failed to prefetch Farcaster PFP:', err);
     });
 
+    // Auto-verify quests on login (fire-and-forget)
+    this.userQuestsService
+      .verifyQuestsForUser(user!.id)
+      .then((result) => {
+        if (result.verified > 0) {
+          this.logger.log(
+            `Auto-verified ${result.verified} quests for user ${user!.id}`,
+          );
+        }
+      })
+      .catch((err) => {
+        this.logger.debug('Failed to auto-verify quests:', err);
+      });
+
     const payload = {
       sub: user!.id,
       fid: user!.fid,
       walletAddress: safeLoginAddress,
       role: user!.role,
     };
+
+    this.logger.debug(`[TIMING] Total login: ${Date.now() - totalStart}ms`);
 
     return {
       access_token: this.jwtService.sign(payload),
@@ -218,6 +264,20 @@ export class AuthService {
 
     // Track as metamask wallet
     await this.usersService.addClientWallet(user!.id, safeAddress, 'metamask');
+
+    // Auto-verify quests on login (fire-and-forget)
+    this.userQuestsService
+      .verifyQuestsForUser(user!.id)
+      .then((result) => {
+        if (result.verified > 0) {
+          this.logger.log(
+            `Auto-verified ${result.verified} quests for user ${user!.id}`,
+          );
+        }
+      })
+      .catch((err) => {
+        this.logger.debug('Failed to auto-verify quests:', err);
+      });
 
     const payload = {
       sub: user!.id,

@@ -18,6 +18,10 @@ import { BasecardsService } from '../basecards/basecards.service';
 export class CollectionsService {
   private readonly logger = new Logger(CollectionsService.name);
 
+  // In-memory cache for collections (1 minute TTL)
+  private collectionsCache = new Map<string, { data: any[]; expiry: number }>();
+  private readonly CACHE_TTL_MS = 60 * 1000; // 1 minute
+
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private usersService: UsersService,
@@ -63,6 +67,13 @@ export class CollectionsService {
           collectedCardId: collectedCard.id,
         })
         .returning();
+
+      // Invalidate cache for this user
+      this.collectionsCache.delete(collector.id);
+      this.logger.debug(
+        `Collections cache invalidated for user ${collector.id}`,
+      );
+
       return collection;
     } catch (error: any) {
       this.logger.error(
@@ -76,13 +87,32 @@ export class CollectionsService {
   }
 
   async findAllByUserId(userId: string) {
+    const now = Date.now();
+
+    // Check cache first
+    const cached = this.collectionsCache.get(userId);
+    if (cached && cached.expiry > now) {
+      this.logger.debug(`[TIMING] collections cache hit for ${userId}`);
+      return cached.data;
+    }
+
+    const start = Date.now();
     const collections = await this.db.query.collections.findMany({
       where: eq(schema.collections.collectorUserId, userId),
       with: {
         collectedCard: true,
       },
     });
-    return collections.map((c) => c.collectedCard);
+    const result = collections.map((c) => c.collectedCard);
+    this.logger.debug(`[TIMING] collections query: ${Date.now() - start}ms`);
+
+    // Update cache
+    this.collectionsCache.set(userId, {
+      data: result,
+      expiry: now + this.CACHE_TTL_MS,
+    });
+
+    return result;
   }
 
   async findAll(address?: string) {

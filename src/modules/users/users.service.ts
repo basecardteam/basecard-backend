@@ -19,6 +19,10 @@ export class UsersService {
   private readonly NEYNAR_API_URL =
     'https://api.neynar.com/v2/farcaster/user/bulk';
 
+  // In-memory cache for findOne (30 second TTL to reduce DB calls)
+  private userCache = new Map<string, { data: any; expiry: number }>();
+  private readonly USER_CACHE_TTL_MS = 30 * 1000; // 30 seconds
+
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private evmLib: EvmLib,
@@ -206,14 +210,43 @@ export class UsersService {
     return this.db.query.users.findMany();
   }
 
-  findOne(id: string) {
-    return this.db.query.users.findFirst({
+  async findOne(id: string) {
+    const now = Date.now();
+
+    // Check cache first
+    const cached = this.userCache.get(id);
+    if (cached && cached.expiry > now) {
+      this.logger.debug(`[TIMING] findOne cache hit for ${id}`);
+      return cached.data;
+    }
+
+    const start = Date.now();
+    const result = await this.db.query.users.findFirst({
       where: eq(schema.users.id, id),
       with: {
         card: true,
         wallets: true,
       },
     });
+    this.logger.debug(`[TIMING] findOne query: ${Date.now() - start}ms`);
+
+    // Update cache
+    if (result) {
+      this.userCache.set(id, {
+        data: result,
+        expiry: now + this.USER_CACHE_TTL_MS,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Invalidate user cache - call this after user data changes (e.g., claim quest)
+   */
+  invalidateUserCache(userId: string) {
+    this.userCache.delete(userId);
+    this.logger.debug(`Cache invalidated for user ${userId}`);
   }
 
   async findByAddress(address: string) {

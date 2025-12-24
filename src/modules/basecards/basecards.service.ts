@@ -88,7 +88,10 @@ export class BasecardsService {
 
     // Process Image (Minting)
     this.logger.log('Processing profile image file...');
-    const { imageURI } = await this.processMinting(file, createBasecardDto);
+    const { imageURI, gatewayUrl } = await this.processMinting(
+      file,
+      createBasecardDto,
+    );
 
     // Simulate Contract Call (Backend Validation)
     // Filter out empty social values to avoid unnecessary onchain storage
@@ -134,6 +137,9 @@ export class BasecardsService {
 
     this.logger.log(`Card created: ${card.id}`);
 
+    // Invalidate findAll cache (new card added)
+    this.findAllCache.data = null;
+
     return {
       card_data: {
         nickname: card.nickname,
@@ -144,13 +150,14 @@ export class BasecardsService {
       social_keys: socialKeys,
       social_values: socialValues,
       initial_delegates: initialDelegates,
+      gatewayUrl: gatewayUrl,
     };
   }
 
   async processMinting(
     file: Express.Multer.File,
     dto: CreateBasecardDto,
-  ): Promise<{ imageURI: string }> {
+  ): Promise<{ imageURI: string; gatewayUrl: string }> {
     try {
       // 1. Prepare image for NFT
       const preparedImage = await this.imageService.prepareProfileImage(
@@ -184,12 +191,13 @@ export class BasecardsService {
         'IPFS_GATEWAY_URL',
         'https://ipfs.io/ipfs',
       );
-      const gatewayUrl = `https://${gatewayBase}/${ipfsResult.cid}`;
+      const gatewayUrl = `https://${gatewayBase}/ipfs/${ipfsResult.cid}`;
       this.logger.log(`IPFS Uploaded: ${nftUri}`);
       this.logger.log(`IPFS Gateway: ${gatewayUrl}`);
 
       return {
         imageURI: nftUri,
+        gatewayUrl: gatewayUrl,
       };
     } catch (error) {
       this.logger.error('Generating basecard failed', error);
@@ -298,6 +306,12 @@ export class BasecardsService {
       })
       .where(eq(schema.basecards.id, id))
       .returning();
+
+    // Invalidate caches
+    this.findOneCache.delete(id);
+    this.findAllCache.data = null;
+    this.logger.debug(`Cache invalidated for basecard ${id}`);
+
     return updated;
   }
 

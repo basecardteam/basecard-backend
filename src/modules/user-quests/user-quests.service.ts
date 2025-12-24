@@ -50,28 +50,65 @@ export class UserQuestsService {
       where: eq(schema.userQuests.userId, userId),
     });
 
-    // Merge quest data with user status & Attempt auto-verification
-    return Promise.all(
+    // Merge quest data with user status (no auto-verify here for performance)
+    return quests.map((quest) => {
+      const userQuest = userQuests.find((uq) => uq.questId === quest.id);
+      const status = userQuest?.status || ('pending' as const);
+      return { ...quest, status };
+    });
+  }
+
+  /**
+   * Verify all pending quests for a user and update their status
+   * This should be called on login or explicitly by the user
+   */
+  async verifyQuestsForUser(userId: string): Promise<{
+    verified: number;
+    quests: { questId: string; actionType: string; status: string }[];
+  }> {
+    const user = await this.db.query.users.findFirst({
+      where: eq(schema.users.id, userId),
+    });
+
+    if (!user) {
+      return { verified: 0, quests: [] };
+    }
+
+    // Get all active quests
+    const quests = await this.db.query.quests.findMany({
+      where: eq(schema.quests.isActive, true),
+    });
+
+    // Get user's current quest statuses
+    const userQuests = await this.db.query.userQuests.findMany({
+      where: eq(schema.userQuests.userId, userId),
+    });
+
+    const results: { questId: string; actionType: string; status: string }[] =
+      [];
+    let verifiedCount = 0;
+
+    // Check each pending quest
+    await Promise.all(
       quests.map(async (quest) => {
         const userQuest = userQuests.find((uq) => uq.questId === quest.id);
-        let status = userQuest?.status || ('pending' as const);
+        const currentStatus = userQuest?.status || 'pending';
 
-        // If pending, try auto-verify
-        if (status === 'pending') {
-          const autoClaimable = await this.tryAutoVerify(
+        // Only verify if pending
+        if (currentStatus === 'pending') {
+          const isClaimable = await this.tryAutoVerify(
             user.walletAddress,
             user,
             quest,
             { fid: user.fid ?? undefined },
           );
 
-          if (autoClaimable) {
+          if (isClaimable) {
             this.logger.log(
-              `Auto-verified quest ${quest.actionType} for user ${userId}`,
+              `Verified quest ${quest.actionType} for user ${userId}`,
             );
-            status = 'claimable';
 
-            // Update DB to reflect claimable status
+            // Update DB
             await this.db
               .insert(schema.userQuests)
               .values({
@@ -84,12 +121,31 @@ export class UserQuestsService {
                 set: { status: 'claimable' },
                 where: eq(schema.userQuests.status, 'pending'),
               });
-          }
-        }
 
-        return { ...quest, status };
+            verifiedCount++;
+            results.push({
+              questId: quest.id,
+              actionType: quest.actionType,
+              status: 'claimable',
+            });
+          } else {
+            results.push({
+              questId: quest.id,
+              actionType: quest.actionType,
+              status: 'pending',
+            });
+          }
+        } else {
+          results.push({
+            questId: quest.id,
+            actionType: quest.actionType,
+            status: currentStatus,
+          });
+        }
       }),
     );
+
+    return { verified: verifiedCount, quests: results };
   }
 
   /**
@@ -220,6 +276,9 @@ export class UserQuestsService {
     this.logger.log(
       `Quest ${quest.actionType} claimed by user ${userId}: +${quest.rewardAmount} points`,
     );
+
+    // Invalidate user cache so next /users/me returns fresh data
+    this.usersService.invalidateUserCache(userId);
 
     return {
       verified: true,

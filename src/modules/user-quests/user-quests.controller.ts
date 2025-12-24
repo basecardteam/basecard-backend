@@ -4,7 +4,6 @@ import {
   Get,
   Logger,
   Post,
-  Query,
   UseGuards,
   Request,
   ForbiddenException,
@@ -40,6 +39,26 @@ export class UserQuestsController {
       throw new ForbiddenException('User ID not found in token');
     }
     return this.userQuestsService.findAllForUserById(userId);
+  }
+
+  @Post('verify')
+  @ApiOperation({
+    summary: 'Verify all pending quests for the current user',
+    description:
+      'Checks all pending quests and updates their status if conditions are met',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification result with count of verified quests',
+  })
+  async verifyQuests(@Request() req: any) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
+    }
+
+    this.logger.log(`Verify quests request for userId=${userId}`);
+    return this.userQuestsService.verifyQuestsForUser(userId);
   }
 
   @Post('claim')
