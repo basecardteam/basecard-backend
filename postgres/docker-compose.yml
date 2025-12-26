@@ -24,3 +24,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - basecard-network
+
+networks:
+  basecard-network:
+    name: basecard-network
+    driver: bridge
