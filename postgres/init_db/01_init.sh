@@ -51,8 +51,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$DB_NAME" <<-EOSQL
     ALTER DEFAULT PRIVILEGES IN SCHEMA ai_agent GRANT ALL ON TABLES TO $AI_AGENT_USER;
     ALTER DEFAULT PRIVILEGES IN SCHEMA ai_agent GRANT ALL ON SEQUENCES TO $AI_AGENT_USER;
     
-    -- AI Agent also needs USAGE on public schema (for shared tables if needed)
+    -- AI Agent needs access to public schema for foreign key references
     GRANT USAGE ON SCHEMA public TO $AI_AGENT_USER;
+    -- Allow SELECT on public tables (for JOINs and lookups)
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO $AI_AGENT_USER;
+    -- Allow REFERENCES on public tables (for foreign keys like REFERENCES public.users)
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT REFERENCES ON TABLES TO $AI_AGENT_USER;
 
 EOSQL
 
