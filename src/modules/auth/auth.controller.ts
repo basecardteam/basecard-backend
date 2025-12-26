@@ -40,8 +40,6 @@ export class AuthController {
   async loginFarcaster(
     @Body() body: { token: string; clientFid: number; loginAddress: string },
   ) {
-    // this.logger.debug(`Farcaster login request: ${JSON.stringify(body)}`);
-
     const { token, clientFid, loginAddress } = body;
 
     if (!token) throw new UnauthorizedException('Token is required');
@@ -49,14 +47,12 @@ export class AuthController {
     if (!loginAddress)
       throw new UnauthorizedException('loginAddress is required');
 
-    const { address: tokenAddress, fid } =
-      await this.authService.validateFarcasterToken(token);
+    const { fid } = await this.authService.validateFarcasterToken(token);
 
     return this.authService.loginOrRegisterWithFarcaster(
       loginAddress,
       fid,
       clientFid,
-      tokenAddress,
     );
   }
 

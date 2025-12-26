@@ -120,131 +120,52 @@ export class AuthService {
    * Shared login logic for Farcaster: Find or Create User -> Issue Token
    * @param loginAddress - The wallet address user is logging in with
    * @param fid - Farcaster ID
-   * @param clientFid - Client app FID (9152=Farcaster, 309857=BaseApp)
    * @param tokenAddress - Address from the Farcaster token (always Farcaster primary address)
    */
   async loginOrRegisterWithFarcaster(
     loginAddress: string,
     fid: number,
     clientFid: number,
-    tokenAddress: string,
   ) {
     const totalStart = Date.now();
-    const safeLoginAddress = loginAddress.toLowerCase();
-    const safeTokenAddress = tokenAddress.toLowerCase();
-    const isBaseApp = clientFid === 309857;
 
-    // 1. Find user by FID (same Farcaster account, regardless of app)
-    let stepStart = Date.now();
-    let user = await this.usersService.findByFid(fid);
-    this.logger.debug(`[TIMING] findByFid: ${Date.now() - stepStart}ms`);
+    // 1. Find or create user by FID (single DB call handles all cases)
+    const { user, isNewUser } = await this.usersService.findOrCreateByFid(
+      fid,
+      loginAddress,
+    );
 
-    // 2. If not found, create new user
-    if (!user) {
-      stepStart = Date.now();
-      const newUser = await this.usersService.create({
-        walletAddress: safeLoginAddress,
-        fid,
-      });
-      this.logger.debug(`[TIMING] create user: ${Date.now() - stepStart}ms`);
-      user = { ...newUser, card: null } as any;
-
-      // Add tokenAddress (Farcaster primary) to user_wallets
-      stepStart = Date.now();
-      await this.usersService.addClientWallet(
-        user!.id,
-        safeTokenAddress,
-        'farcaster',
-        9152,
-      );
-      this.logger.debug(
-        `[TIMING] addClientWallet(farcaster): ${Date.now() - stepStart}ms`,
-      );
-
-      // If BaseApp login, also add loginAddress as baseapp wallet
-      if (isBaseApp && safeLoginAddress !== safeTokenAddress) {
-        stepStart = Date.now();
-        await this.usersService.addClientWallet(
-          user!.id,
-          safeLoginAddress,
-          'baseapp',
-          clientFid,
-        );
-        this.logger.debug(
-          `[TIMING] addClientWallet(baseapp): ${Date.now() - stepStart}ms`,
-        );
-      }
-    } else {
-      // User exists - check existing wallets and add only if not tracked
-      const existingAddresses = (user.wallets || []).map((w) =>
-        w.walletAddress.toLowerCase(),
-      );
-
-      // Add tokenAddress (farcaster) if not exists
-      if (!existingAddresses.includes(safeTokenAddress)) {
-        stepStart = Date.now();
-        await this.usersService.addClientWallet(
-          user.id,
-          safeTokenAddress,
-          'farcaster',
-          9152,
-        );
-        this.logger.debug(
-          `[TIMING] addClientWallet(farcaster): ${Date.now() - stepStart}ms`,
-        );
-      }
-
-      // Add loginAddress (baseapp) if BaseApp and not exists
-      if (
-        isBaseApp &&
-        safeLoginAddress !== safeTokenAddress &&
-        !existingAddresses.includes(safeLoginAddress)
-      ) {
-        stepStart = Date.now();
-        await this.usersService.addClientWallet(
-          user.id,
-          safeLoginAddress,
-          'baseapp',
-          clientFid,
-        );
-        this.logger.debug(
-          `[TIMING] addClientWallet(baseapp): ${Date.now() - stepStart}ms`,
-        );
-      }
-    }
-
-    // Prefetch and cache Farcaster PFP on login (fire-and-forget)
-    this.usersService.getCachedFarcasterPfp(user as any).catch((err) => {
-      this.logger.debug('Failed to prefetch Farcaster PFP:', err);
-    });
-
-    // Auto-verify quests on login (fire-and-forget)
-    this.userQuestsService
-      .verifyQuestsForUser(user!.id)
-      .then((result) => {
-        if (result.verified > 0) {
-          this.logger.log(
-            `Auto-verified ${result.verified} quests for user ${user!.id}`,
-          );
-        }
-      })
-      .catch((err) => {
-        this.logger.debug('Failed to auto-verify quests:', err);
-      });
-
+    // 2. Generate JWT immediately (fast response)
     const payload = {
-      sub: user!.id,
-      fid: user!.fid,
-      walletAddress: safeLoginAddress,
-      role: user!.role,
+      sub: user.id,
+      fid: user.fid,
+      walletAddress: loginAddress.toLowerCase(),
+      role: user.role,
     };
 
-    this.logger.debug(`[TIMING] Total login: ${Date.now() - totalStart}ms`);
+    this.logger.debug(`[TIMING] Login sync: ${Date.now() - totalStart}ms`);
+
+    // 3. Fire-and-forget: Background initialization
+    if (isNewUser) {
+      this.initializeUserBackground(user.id, fid);
+    }
 
     return {
       access_token: this.jwtService.sign(payload),
       user,
     };
+  }
+
+  /**
+   * Background initialization after login (fire-and-forget)
+   * - Initialize wallets from Neynar auth_addresses
+   * - Update PFP
+   */
+  private initializeUserBackground(userId: string, fid: number): void {
+    // Initialize wallets and PFP from Neynar
+    this.usersService
+      .initializeUserFromNeynar(userId, fid)
+      .catch((err) => this.logger.debug('Failed to init from Neynar:', err));
   }
 
   /**

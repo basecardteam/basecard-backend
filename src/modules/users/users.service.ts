@@ -114,8 +114,84 @@ export class UsersService {
   }
 
   /**
-   * Create or find user by wallet address
-   * Optionally sets FID if provided
+   * Find or create user by FID (for Farcaster login)
+   * Returns { user, isNewUser }
+   */
+  async findOrCreateByFid(
+    fid: number,
+    walletAddress: string,
+  ): Promise<{
+    user: typeof schema.users.$inferSelect & { card: any; wallets: any[] };
+    isNewUser: boolean;
+  }> {
+    const safeAddress = walletAddress.toLowerCase();
+
+    // 1. Try to find by FID first
+    let existingUser = await this.db.query.users.findFirst({
+      where: eq(schema.users.fid, fid),
+      with: { card: true, wallets: true },
+    });
+
+    if (existingUser) {
+      return { user: existingUser, isNewUser: false };
+    }
+
+    // 2. Check if wallet address exists (edge case: wallet exists but no FID)
+    existingUser = await this.db.query.users.findFirst({
+      where: eq(schema.users.walletAddress, safeAddress),
+      with: { card: true, wallets: true },
+    });
+
+    if (existingUser) {
+      // Update FID if not set
+      if (!existingUser.fid) {
+        await this.db
+          .update(schema.users)
+          .set({ fid })
+          .where(eq(schema.users.id, existingUser.id));
+        this.logger.log(`Updated FID ${fid} for user ${existingUser.id}`);
+      }
+      return { user: { ...existingUser, fid }, isNewUser: false };
+    }
+
+    // 3. Create new user
+    const [newUser] = await this.db
+      .insert(schema.users)
+      .values({
+        walletAddress: safeAddress,
+        fid,
+        isNewUser: true,
+      })
+      .returning();
+
+    this.logger.log(`Created new user: ${newUser.id} (FID: ${fid})`);
+
+    // 4. Initialize User Quests
+    const activeQuests = await this.db.query.quests.findMany({
+      where: eq(schema.quests.isActive, true),
+    });
+
+    if (activeQuests.length > 0) {
+      await this.db.insert(schema.userQuests).values(
+        activeQuests.map((quest) => ({
+          userId: newUser.id,
+          questId: quest.id,
+          status: 'pending' as const,
+        })),
+      );
+      this.logger.log(
+        `Initialized ${activeQuests.length} quests for user ${newUser.id}`,
+      );
+    }
+
+    return {
+      user: { ...newUser, card: null, wallets: [] },
+      isNewUser: true,
+    };
+  }
+
+  /**
+   * Create user by wallet address (for wallet-only login)
    */
   async create(createUserDto: CreateUserDto & { fid?: number }) {
     const safeAddress = createUserDto.walletAddress.toLowerCase();
@@ -126,16 +202,6 @@ export class UsersService {
 
     if (existing) {
       this.logger.debug(`User already exists: ${existing.id}`);
-
-      // Update FID if provided and not set
-      if (createUserDto.fid && !existing.fid) {
-        await this.db
-          .update(schema.users)
-          .set({ fid: createUserDto.fid })
-          .where(eq(schema.users.id, existing.id));
-        this.logger.log(`Updated FID for user ${existing.id}`);
-      }
-
       return existing;
     }
 
@@ -147,28 +213,8 @@ export class UsersService {
         isNewUser: true,
       })
       .returning();
-    this.logger.log(
-      `Created new user: ${user.id} (FID: ${createUserDto.fid || 'none'})`,
-    );
 
-    // Initialize User Quests
-    const activeQuests = await this.db.query.quests.findMany({
-      where: eq(schema.quests.isActive, true),
-    });
-
-    if (activeQuests.length > 0) {
-      await this.db.insert(schema.userQuests).values(
-        activeQuests.map((quest) => ({
-          userId: user.id,
-          questId: quest.id,
-          status: 'pending' as const,
-        })),
-      );
-      this.logger.log(
-        `Initialized ${activeQuests.length} quests for user ${user.id}`,
-      );
-    }
-
+    this.logger.log(`Created new user: ${user.id}`);
     return user;
   }
 
@@ -198,6 +244,73 @@ export class UsersService {
       this.logger.log(
         `Added ${clientType} wallet for user ${userId}: ${safeAddress}`,
       );
+    }
+  }
+
+  /**
+   * Initialize user data from Neynar API (fire-and-forget)
+   * - Adds all auth_addresses to user_wallets
+   * - Updates pfp_url in users table
+   */
+  async initializeUserFromNeynar(userId: string, fid: number): Promise<void> {
+    const apiKey = this.appConfigService.neynarApiKey;
+    if (!apiKey) {
+      this.logger.error('NEYNAR_API_KEY is not configured');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${this.NEYNAR_API_URL}?fids=${fid}`, {
+        headers: { 'x-api-key': apiKey },
+      });
+
+      if (!response.ok) {
+        this.logger.error(`Neynar API error: ${response.status}`);
+        return;
+      }
+
+      const data = await response.json();
+      if (!data.users || data.users.length === 0) {
+        return;
+      }
+
+      const neynarUser = data.users[0];
+
+      // 1. Update pfp_url in users table
+      if (neynarUser.pfp_url) {
+        await this.db
+          .update(schema.users)
+          .set({
+            farcasterPfpUrl: neynarUser.pfp_url,
+            farcasterPfpUpdatedAt: new Date(),
+          })
+          .where(eq(schema.users.id, userId));
+        this.logger.log(`Updated PFP for user ${userId}`);
+      }
+
+      // 2. Add all auth_addresses to user_wallets
+      const authAddresses: Array<{ address: string; app?: { fid: number } }> =
+        neynarUser.auth_addresses || [];
+
+      for (const auth of authAddresses) {
+        const appFid = auth.app?.fid;
+        let clientType: 'farcaster' | 'baseapp' = 'farcaster';
+
+        // Determine client type based on app FID
+        if (appFid === 309857) {
+          clientType = 'baseapp';
+        } else if (appFid === 9152) {
+          clientType = 'farcaster';
+        }
+
+        await this.addClientWallet(userId, auth.address, clientType, appFid);
+      }
+
+      this.logger.log(
+        `Initialized ${authAddresses.length} wallets for user ${userId} from Neynar`,
+      );
+    } catch (error) {
+      this.logger.error('Error initializing user from Neynar:', error);
     }
   }
 
