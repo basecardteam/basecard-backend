@@ -32,14 +32,19 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$DB_NAME" <<-EOSQL
     -- ============================================
     -- AI Agent gets its own schema
     CREATE SCHEMA IF NOT EXISTS ai_agent;
+    -- Drizzle uses 'drizzle' schema for migrations
+    CREATE SCHEMA IF NOT EXISTS drizzle;
 
     -- ============================================
     -- Grant Privileges
     -- ============================================
-    -- Backend user: full access to public schema
+    -- Backend user: full access to public schema + drizzle schema for migrations
     GRANT ALL PRIVILEGES ON SCHEMA public TO $BACKEND_USER;
+    GRANT ALL PRIVILEGES ON SCHEMA drizzle TO $BACKEND_USER;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $BACKEND_USER;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $BACKEND_USER;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA drizzle GRANT ALL ON TABLES TO $BACKEND_USER;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA drizzle GRANT ALL ON SEQUENCES TO $BACKEND_USER;
 
     -- AI Agent user: full access to ai_agent schema
     GRANT ALL PRIVILEGES ON SCHEMA ai_agent TO $AI_AGENT_USER;
