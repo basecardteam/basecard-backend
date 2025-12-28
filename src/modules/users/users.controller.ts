@@ -41,6 +41,54 @@ export class UsersController {
     return result;
   }
 
+  @Post('me/notification')
+  async upsertNotification(
+    @Request() req,
+    @Body()
+    body: {
+      clientFid: number;
+      notificationToken: string;
+      notificationUrl: string;
+    },
+  ) {
+    const userId = req.user?.userId;
+    const walletAddress = req.user?.walletAddress;
+
+    this.logger.log(
+      `Upserting notification for user ${userId}, clientFid=${body.clientFid}`,
+    );
+
+    return this.usersService.upsertNotification(
+      userId,
+      walletAddress,
+      body.clientFid,
+      body.notificationToken,
+      body.notificationUrl,
+    );
+  }
+
+  @Post('me/miniapp_added')
+  async upsertMiniAppAdded(
+    @Request() req,
+    @Body()
+    body: {
+      clientFid: number;
+    },
+  ) {
+    const userId = req.user?.userId;
+    const walletAddress = req.user?.walletAddress;
+
+    this.logger.log(
+      `Marking miniapp added for user ${userId}, clientFid=${body.clientFid}`,
+    );
+
+    return this.usersService.upsertMiniAppAdded(
+      userId,
+      walletAddress,
+      body.clientFid,
+    );
+  }
+
   @Get()
   @ApiQuery({ name: 'role', required: false, enum: ['user', 'admin'] })
   findAll(@Query('role') role?: 'user' | 'admin') {

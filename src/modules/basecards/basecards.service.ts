@@ -206,26 +206,13 @@ export class BasecardsService {
   }
 
   async findAll(limit: number = 50, offset: number = 0) {
-    const cacheKey = `${limit}-${offset}`;
-    const now = Date.now();
-
-    // Return cached data if valid
-    if (
-      this.findAllCache.data &&
-      this.findAllCache.key === cacheKey &&
-      this.findAllCache.expiry > now
-    ) {
-      this.logger.debug('Returning cached findAll result');
-      return this.findAllCache.data;
-    }
-
     const cards = await this.db.query.basecards.findMany({
       limit,
       offset,
       orderBy: (basecards, { desc }) => [desc(basecards.createdAt)],
     });
 
-    const result = cards.map((card) => ({
+    return cards.map((card) => ({
       id: card.id,
       userId: card.userId,
       nickname: card.nickname,
@@ -237,15 +224,6 @@ export class BasecardsService {
       createdAt: card.createdAt,
       updatedAt: card.updatedAt,
     }));
-
-    // Update cache
-    this.findAllCache = {
-      data: result,
-      expiry: now + this.CACHE_TTL_MS,
-      key: cacheKey,
-    };
-
-    return result;
   }
 
   async findOne(id: string): Promise<BasecardDetail | null> {
@@ -269,8 +247,7 @@ export class BasecardsService {
       return null;
     }
 
-    // Get cached Farcaster PFP (with 1-hour TTL)
-    const pfpUrl = await this.usersService.getCachedFarcasterPfp(card.user);
+    // Use DB cached value (refreshed on login)
 
     const result: BasecardDetail = {
       id: card.id,
@@ -280,7 +257,7 @@ export class BasecardsService {
       bio: card.bio,
       address: card.user.walletAddress,
       fid: card.user.fid,
-      farcasterPfpUrl: pfpUrl,
+      farcasterPfpUrl: card.user.farcasterPfpUrl,
       socials: card.socials,
       tokenId: card.tokenId,
       imageUri: card.imageUri,
@@ -313,6 +290,15 @@ export class BasecardsService {
     this.logger.debug(`Cache invalidated for basecard ${id}`);
 
     return updated;
+  }
+
+  /**
+   * Invalidate basecard cache - call after card data changes from event handler
+   */
+  invalidateCache(cardId: string) {
+    this.findOneCache.delete(cardId);
+    this.findAllCache.data = null;
+    this.logger.debug(`Cache invalidated for basecard ${cardId}`);
   }
 
   /**
@@ -365,24 +351,45 @@ export class BasecardsService {
       }
     }
 
-    // 3. Process image if provided
+    // 4. Check if card data changed (nickname, role, bio, or profile image)
+    const cardDataChanged =
+      nickname !== existingCard.nickname ||
+      role !== existingCard.role ||
+      bio !== existingCard.bio ||
+      !!file; // Profile image file provided
+
     let imageUri = existingCard.imageUri || '';
     let uploadedFiles: { ipfsId: string } | undefined;
 
-    if (!file) {
-      throw new Error('No file provided');
-    }
+    if (cardDataChanged) {
+      // Card data changed - need to regenerate NFT image
+      if (!file) {
+        throw new Error(
+          'Profile image file is required when updating card data',
+        );
+      }
 
-    this.logger.log('Processing updated profile image...');
-    const result = await this.processUpdateImage(file, address, {
-      nickname,
-      role,
-      bio,
-    });
-    imageUri = result.imageURI;
-    uploadedFiles = {
-      ipfsId: result.ipfsId,
-    };
+      this.logger.log('Card data changed, regenerating NFT image...');
+      const result = await this.processUpdateImage(file, address, {
+        nickname,
+        role,
+        bio,
+      });
+      imageUri = result.imageURI;
+
+      // Only set uploadedFiles if it's a NEW image (different from existing)
+      if (result.imageURI !== existingCard.imageUri) {
+        uploadedFiles = {
+          ipfsId: result.ipfsId,
+        };
+        this.logger.debug('New image uploaded, rollback will delete it');
+      } else {
+        this.logger.debug('Image unchanged (same CID), rollback not needed');
+      }
+    } else {
+      // Only socials changed - skip image generation
+      this.logger.log('Only socials changed, skipping image generation');
+    }
 
     // 4. Simulate Contract Call (Backend Validation)
     const socialKeys = Object.keys(socials);
@@ -541,7 +548,7 @@ export class BasecardsService {
     // Also update user hasMintedCard
     await this.db
       .update(schema.users)
-      .set({ hasMintedCard: true })
+      .set({ hasMintedCard: true, isNewUser: false })
       .where(eq(schema.users.id, user.id));
 
     return updated;

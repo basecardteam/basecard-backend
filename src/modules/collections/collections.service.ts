@@ -153,10 +153,25 @@ export class CollectionsService {
     throw new BadRequestException('Updating collections is not supported');
   }
 
-  remove(id: string) {
-    return this.db
+  async remove(id: string) {
+    // Get collection first to find userId for cache invalidation
+    const collection = await this.db.query.collections.findFirst({
+      where: eq(schema.collections.id, id),
+    });
+
+    await this.db
       .delete(schema.collections)
       .where(eq(schema.collections.id, id));
+
+    // Invalidate cache
+    if (collection) {
+      this.collectionsCache.delete(collection.collectorUserId);
+      this.logger.debug(
+        `Collections cache invalidated for user ${collection.collectorUserId}`,
+      );
+    }
+
+    return { success: true };
   }
 
   async removeByCardId(collectorAddress: string, basecardId: string) {
@@ -184,9 +199,14 @@ export class CollectionsService {
       throw new BadRequestException('Cannot delete other users collections');
     }
 
-    // 4. Delete
-    return this.db
+    // 4. Delete and invalidate cache
+    await this.db
       .delete(schema.collections)
       .where(eq(schema.collections.id, collection.id));
+
+    this.collectionsCache.delete(collector.id);
+    this.logger.debug(`Collections cache invalidated for user ${collector.id}`);
+
+    return { success: true };
   }
 }

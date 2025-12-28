@@ -40,7 +40,7 @@ export class LoggingInterceptor implements NestInterceptor {
           // Truncate if too long
           const truncated =
             dataStr.length > 500 ? dataStr.substring(0, 500) + '...' : dataStr;
-          this.logger.debug(`${userInfo} Response: ${truncated}`);
+          // this.logger.debug(`${userInfo} Response: ${truncated}`);
         }
       }),
     );

@@ -17,12 +17,16 @@ import {
   SetMetadata,
   Query,
   Request,
+  Header,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BasecardsService } from './basecards.service';
 import { CreateBasecardDto } from './dto/create-basecard.dto';
-import { UpdateBasecardDto } from './dto/update-basecard.dto';
+import {
+  UpdateBasecardDto,
+  UpdateBaseCardResponse,
+} from './dto/update-basecard.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 // Public decorator to bypass auth
@@ -39,6 +43,7 @@ export class BasecardsController {
 
   @Public()
   @Get()
+  @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   findAll(@Query('limit') limit?: number, @Query('offset') offset?: number) {
@@ -154,18 +159,28 @@ export class BasecardsController {
     }
   }
 
-  @Patch(':address')
+  @Patch('me')
   @UseInterceptors(FileInterceptor('profileImageFile'))
   @ApiConsumes('multipart/form-data')
   async processUpdate(
-    @Param('address') address: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() updateBasecardDto: UpdateBasecardDto,
     @Request() req,
-  ) {
-    // 본인 확인
-    if (req.user.walletAddress?.toLowerCase() !== address.toLowerCase()) {
-      throw new ForbiddenException('You can only modify your own card');
+  ): Promise<UpdateBaseCardResponse> {
+    const userId = req.user?.sub || req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
+    }
+
+    // Get user's card by userId
+    const existingCard = await this.basecardsService.findByUserId(userId);
+    if (!existingCard) {
+      throw new BadRequestException('You do not have a BaseCard');
+    }
+
+    const address = existingCard.user?.walletAddress;
+    if (!address) {
+      throw new BadRequestException('Wallet address not found');
     }
 
     this.logger.debug(
@@ -194,7 +209,18 @@ export class BasecardsController {
         file,
       );
 
-      return result;
+      const tokenId = existingCard.tokenId;
+      if (!tokenId) {
+        throw new Error('Token ID not found for this card');
+      }
+
+      return {
+        card_data: result.card_data,
+        social_keys: result.social_keys,
+        social_values: result.social_values,
+        token_id: tokenId,
+        needs_rollback: !!result.uploadedFiles,
+      };
     } catch (error) {
       this.logger.error('Failed to process update', error);
       throw new InternalServerErrorException(
@@ -203,23 +229,31 @@ export class BasecardsController {
     }
   }
 
-  @Post(':address/rollback')
-  async rollbackUpdate(
-    @Param('address') address: string,
-    @Body() body: { ipfsId: string },
-    @Request() req,
-  ) {
-    // 본인 확인
-    if (req.user.walletAddress?.toLowerCase() !== address.toLowerCase()) {
-      throw new ForbiddenException('You can only rollback your own card');
+  @Post('me/rollback')
+  async rollbackUpdate(@Body() body: { imageUri: string }, @Request() req) {
+    const userId = req.user?.sub || req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
     }
 
-    this.logger.debug(`Rollback: ${address}, ipfs=${body.ipfsId}`);
+    // Extract ipfsId from imageUri (format: ipfs://QmXxx... or https://...pinata.../ipfs/QmXxx)
+    let ipfsId = '';
+    if (body.imageUri) {
+      if (body.imageUri.startsWith('ipfs://')) {
+        ipfsId = body.imageUri.replace('ipfs://', '');
+      } else if (body.imageUri.includes('/ipfs/')) {
+        ipfsId = body.imageUri.split('/ipfs/').pop() || '';
+      }
+    }
+
+    if (!ipfsId) {
+      throw new BadRequestException('Invalid imageUri format');
+    }
+
+    this.logger.debug(`Rollback: userId=${userId}, ipfsId=${ipfsId}`);
 
     try {
-      return await this.basecardsService.rollbackUpdate({
-        ipfsId: body.ipfsId,
-      });
+      return await this.basecardsService.rollbackUpdate({ ipfsId });
     } catch (error) {
       this.logger.error('Failed to rollback', error);
       throw new InternalServerErrorException(
