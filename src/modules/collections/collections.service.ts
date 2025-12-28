@@ -9,7 +9,7 @@ import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { DRIZZLE } from '../../db/db.module';
 import * as schema from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { UsersService } from '../users/users.service';
 import { BasecardsService } from '../basecards/basecards.service';
@@ -28,18 +28,14 @@ export class CollectionsService {
     private basecardsService: BasecardsService,
   ) {}
 
-  async create(collectorAddress: string, basecardId: string) {
-    // 1. Resolve Collector (User)
-    const collector = await this.usersService.findByAddress(collectorAddress);
-    if (!collector) {
-      throw new NotFoundException(
-        `Collector user not found: ${collectorAddress}`,
-      );
-    }
+  async create(userId: string, basecardId: string) {
+    this.logger.log(
+      `Creating collection: userId=${userId}, card=${basecardId}`,
+    );
 
-    // 2. Check if collector has their own BaseCard
+    // 1. Check if collector has their own BaseCard
     const collectorCard = await this.db.query.basecards.findFirst({
-      where: eq(schema.basecards.userId, collector.id),
+      where: eq(schema.basecards.userId, userId),
     });
     if (!collectorCard) {
       throw new BadRequestException(
@@ -47,7 +43,7 @@ export class CollectionsService {
       );
     }
 
-    // 3. Resolve Collected Card (Basecard) by ID
+    // 2. Resolve Collected Card (Basecard) by ID
     const collectedCard = await this.db.query.basecards.findFirst({
       where: eq(schema.basecards.id, basecardId),
     });
@@ -58,21 +54,19 @@ export class CollectionsService {
     // 3. Create Collection
     try {
       this.logger.log(
-        `Creating collection: collector=${collector.id}, card=${collectedCard.id}`,
+        `Creating collection: collector=${userId}, card=${collectedCard.id}`,
       );
       const [collection] = await this.db
         .insert(schema.collections)
         .values({
-          collectorUserId: collector.id,
+          collectorUserId: userId,
           collectedCardId: collectedCard.id,
         })
         .returning();
 
       // Invalidate cache for this user
-      this.collectionsCache.delete(collector.id);
-      this.logger.debug(
-        `Collections cache invalidated for user ${collector.id}`,
-      );
+      this.collectionsCache.delete(userId);
+      this.logger.debug(`Collections cache invalidated for user ${userId}`);
 
       return collection;
     } catch (error: any) {
@@ -174,38 +168,28 @@ export class CollectionsService {
     return { success: true };
   }
 
-  async removeByCardId(collectorAddress: string, basecardId: string) {
-    // 1. Find collector user
-    const collector = await this.usersService.findByAddress(collectorAddress);
-    if (!collector) {
-      throw new NotFoundException(
-        `Collector user not found: ${collectorAddress}`,
-      );
-    }
-
-    // 2. Find the collection
+  async removeByCardId(userId: string, basecardId: string) {
+    // 1. Find the collection (and verify ownership)
     const collection = await this.db.query.collections.findFirst({
-      where: eq(schema.collections.collectedCardId, basecardId),
+      where: and(
+        eq(schema.collections.collectedCardId, basecardId),
+        eq(schema.collections.collectorUserId, userId),
+      ),
     });
 
     if (!collection) {
       throw new NotFoundException(
-        `Collection not found for card: ${basecardId}`,
+        `Collection not found or access denied for card: ${basecardId}`,
       );
     }
 
-    // 3. Verify ownership
-    if (collection.collectorUserId !== collector.id) {
-      throw new BadRequestException('Cannot delete other users collections');
-    }
-
-    // 4. Delete and invalidate cache
+    // 2. Delete and invalidate cache
     await this.db
       .delete(schema.collections)
       .where(eq(schema.collections.id, collection.id));
 
-    this.collectionsCache.delete(collector.id);
-    this.logger.debug(`Collections cache invalidated for user ${collector.id}`);
+    this.collectionsCache.delete(userId);
+    this.logger.debug(`Collections cache invalidated for user ${userId}`);
 
     return { success: true };
   }

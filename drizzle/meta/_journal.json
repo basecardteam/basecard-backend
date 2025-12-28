@@ -29,6 +29,13 @@
       "when": 1766527464211,
       "tag": "0003_add-farcaster-pfp-cache",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766901667608,
+      "tag": "0004_flippant_aqueduct",
+      "breakpoints": true
     }
   ]
 }

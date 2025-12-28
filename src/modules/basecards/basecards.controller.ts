@@ -147,7 +147,7 @@ export class BasecardsController {
       const result = await this.basecardsService.create(
         createBasecardDto,
         file,
-        { skipSimulation: isAdmin },
+        { skipSimulation: isAdmin, userId: req.user?.userId },
       );
 
       return result;

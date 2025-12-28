@@ -1,0 +1,1 @@
+ALTER TABLE "basecards" ADD COLUMN "token_owner" varchar(42) NOT NULL;

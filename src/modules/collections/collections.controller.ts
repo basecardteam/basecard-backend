@@ -28,12 +28,12 @@ export class CollectionsController {
     @Request() req: any,
     @Body() createCollectionDto: CreateCollectionDto,
   ) {
-    const walletAddress = req.user?.walletAddress;
-    if (!walletAddress) {
-      throw new ForbiddenException('Wallet address not found in token');
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
     }
     return this.collectionsService.create(
-      walletAddress,
+      userId,
       createCollectionDto.basecardId,
     );
   }
@@ -101,10 +101,10 @@ export class CollectionsController {
     @Request() req: any,
     @Param('basecardId') basecardId: string,
   ) {
-    const walletAddress = req.user?.walletAddress;
-    if (!walletAddress) {
-      throw new ForbiddenException('Wallet address not found in token');
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
     }
-    return this.collectionsService.removeByCardId(walletAddress, basecardId);
+    return this.collectionsService.removeByCardId(userId, basecardId);
   }
 }

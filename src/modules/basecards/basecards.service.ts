@@ -55,7 +55,7 @@ export class BasecardsService {
   async create(
     createBasecardDto: CreateBasecardDto,
     file: Express.Multer.File,
-    options?: { skipSimulation?: boolean },
+    options: { skipSimulation?: boolean; userId?: string } = {},
   ) {
     // Check if user has already minted (Contract check)
     const hasMinted = await this.checkHasMinted(createBasecardDto.address);
@@ -65,15 +65,41 @@ export class BasecardsService {
       );
     }
 
-    // Find user by address to get ID
-    const user = await this.db.query.users.findFirst({
-      where: eq(
-        schema.users.walletAddress,
-        createBasecardDto.address.toLowerCase(),
-      ),
-    });
+    let user;
+
+    // 1. Try finding by userId first (most reliable)
+    if (options.userId) {
+      user = await this.db.query.users.findFirst({
+        where: eq(schema.users.id, options.userId),
+      });
+    }
+
+    // 2. Fallback: Find user by address (Primary or Secondary Wallet)
+    if (!user) {
+      const address = createBasecardDto.address.toLowerCase();
+
+      // Check primary wallet
+      user = await this.db.query.users.findFirst({
+        where: eq(schema.users.walletAddress, address),
+      });
+
+      // Check secondary wallets if not found
+      if (!user) {
+        const userWallet = await this.db.query.userWallets.findFirst({
+          where: eq(schema.userWallets.walletAddress, address),
+        });
+        if (userWallet) {
+          user = await this.db.query.users.findFirst({
+            where: eq(schema.users.id, userWallet.userId),
+          });
+        }
+      }
+    }
 
     if (!user) {
+      this.logger.error(
+        `User not found for address: ${createBasecardDto.address}, userId: ${options.userId}`,
+      );
       throw new Error('User not found');
     }
 
@@ -124,6 +150,7 @@ export class BasecardsService {
         .insert(schema.basecards)
         .values({
           userId: user.id,
+          tokenOwner: createBasecardDto.address.toLowerCase(),
           nickname: createBasecardDto.nickname,
           role: createBasecardDto.role,
           bio: createBasecardDto.bio,
