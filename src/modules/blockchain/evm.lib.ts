@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../app/configs/app-config.service';
-import { createPublicClient, http } from 'viem';
-import { baseSepolia } from 'viem/chains';
+import { createPublicClient, http, fallback, webSocket } from 'viem';
+import { baseSepolia, base } from 'viem/chains';
 import * as BaseCardABI from './abi/BaseCard.json';
 
 @Injectable()
@@ -12,9 +12,21 @@ export class EvmLib {
 
   constructor(private appConfigService: AppConfigService) {
     this.contractAddress = this.appConfigService.baseCardContractAddress;
+
+    // Select chain based on configured CHAIN_ID
+    const chainId = this.appConfigService.chainId;
+    const chain = chainId === 8453 ? base : baseSepolia;
+
+    // Create fallback transports from mixed URL list
+    const urls = this.appConfigService.baseRpcUrls;
+    const transports = urls.map((url) => {
+      if (url.startsWith('http')) return http(url);
+      return webSocket(url);
+    });
+
     this.client = createPublicClient({
-      chain: baseSepolia,
-      transport: http(this.appConfigService.baseRpcUrl),
+      chain,
+      transport: fallback(transports, { rank: true }),
     });
   }
 

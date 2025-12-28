@@ -215,7 +215,7 @@ export class BasecardsService {
       }
       const nftUri = `ipfs://${ipfsResult.cid}`;
       const gatewayBase = this.configService.get<string>(
-        'IPFS_GATEWAY_URL',
+        'PINATA_GATEWAY',
         'https://ipfs.io/ipfs',
       );
       const gatewayUrl = `https://${gatewayBase}/ipfs/${ipfsResult.cid}`;

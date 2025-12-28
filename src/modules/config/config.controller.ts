@@ -44,7 +44,7 @@ export class ConfigController {
       ),
       chainId: this.configService.get<number>('CHAIN_ID', 84532),
       ipfsGatewayUrl: this.configService.get<string>(
-        'IPFS_GATEWAY_URL',
+        'PINATA_GATEWAY',
         'https://ipfs.io/ipfs',
       ),
     };

@@ -10,8 +10,6 @@ export class AppConfigService implements OnModuleInit {
   onModuleInit() {
     const requiredKeys = [
       'DATABASE_URL',
-      'SUPABASE_URL',
-      'SUPABASE_KEY',
       'PINATA_JWT',
       'PINATA_GATEWAY',
       'PINATA_GROUP',
@@ -72,42 +70,44 @@ export class AppConfigService implements OnModuleInit {
     return this.configService.get<string>('PINATA_GROUP');
   }
 
-  // Supabase API
-  get supabaseUrl(): string | undefined {
-    return this.configService.get<string>('SUPABASE_URL');
-  }
-
-  get supabaseKey(): string | undefined {
-    return this.configService.get<string>('SUPABASE_KEY');
-  }
-
   // Blockchain
-  get baseRpcUrl(): string {
-    return this.configService.get<string>(
-      'BASE_RPC_URL',
-      'https://sepolia.base.org',
-    );
+  get baseRpcUrls(): string[] {
+    const urls = this.configService.get<string>('BASE_WS_RPC_URLS', '');
+    return urls
+      .split(',')
+      .map((url) => url.trim())
+      .filter(Boolean);
   }
 
-  get baseWsRpcUrls(): string[] {
-    const urls = this.configService.get<string>('BASE_WS_RPC_URLS');
-    if (urls) {
-      return urls.split(',').map((url) => url.trim());
-    }
-    return [];
+  get chainId(): number {
+    return Number(this.configService.get<number>('CHAIN_ID', 84532));
   }
 
-  get baseCardContractAddress(): string | undefined {
-    return this.configService.get<string>('BASECARD_CONTRACT_ADDRESS');
+  get baseCardContractAddress(): string {
+    return this.configService.get<string>('BASECARD_CONTRACT_ADDRESS')!;
   }
 
-  // Socials
-  get neynarApiKey(): string | undefined {
-    return this.configService.get<string>('NEYNAR_API_KEY');
+  // Configurations
+  get farcasterDomain(): string {
+    return this.configService.get<string>('FARCASTER_DOMAIN')!;
   }
 
-  // Auth
+  get neynarApiKey(): string {
+    return this.configService.get<string>('NEYNAR_API_KEY')!;
+  }
+
   get jwtSecret(): string {
     return this.configService.get<string>('JWT_SECRET')!;
+  }
+
+  get adminWalletAddresses(): string[] {
+    const addresses = this.configService.get<string>(
+      'ADMIN_WALLET_ADDRESSES',
+      '',
+    );
+    return addresses
+      .split(',')
+      .map((addr) => addr.trim().toLowerCase())
+      .filter(Boolean);
   }
 }

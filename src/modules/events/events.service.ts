@@ -12,8 +12,8 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { BasecardsService } from '../basecards/basecards.service';
 import { UsersService } from '../users/users.service';
 import { eq, desc, and } from 'drizzle-orm';
-import { createPublicClient, webSocket, fallback, Log } from 'viem';
-import { baseSepolia } from 'viem/chains';
+import { createPublicClient, webSocket, fallback, http, Log } from 'viem';
+import { baseSepolia, base } from 'viem/chains';
 
 import { AppConfigService } from '../../app/configs/app-config.service';
 import { EvmLib } from '../blockchain/evm.lib';
@@ -43,16 +43,23 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     private ipfsService: IpfsService,
   ) {
     this.contractAddress = this.appConfigService.baseCardContractAddress;
-    const wsUrls = this.appConfigService.baseWsRpcUrls;
+    const urls = this.appConfigService.baseRpcUrls;
+
+    // Select chain based on configured CHAIN_ID
+    const chainId = this.appConfigService.chainId;
+    const chain = chainId === 8453 ? base : baseSepolia;
+
+    // Create fallback transports from mixed URL list
+    const transports = urls.map((url) => {
+      if (url.startsWith('http')) return http(url);
+      return webSocket(url);
+    });
 
     this.client = createPublicClient({
-      chain: baseSepolia,
-      transport: fallback(
-        wsUrls.map((url) => webSocket(url)),
-        {
-          rank: true,
-        },
-      ),
+      chain,
+      transport: fallback(transports, {
+        rank: true,
+      }),
     });
   }
 
