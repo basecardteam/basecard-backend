@@ -102,9 +102,8 @@ export class QuestVerificationService implements OnModuleInit {
         return this.evmLib.isSocialLinked(ctx.tokenId, 'farcaster');
 
       case 'FC_SHARE':
-        // TODO: Verify user has shared on Farcaster (check recent casts)
-        // Requires Neynar API + FID
-        return false;
+        // Check if user has shared on Farcaster (check recent casts)
+        return this.checkFarcasterShare(ctx.fid);
 
       case 'FC_FOLLOW':
         // Check if user follows @basecardteam via Neynar API
@@ -254,11 +253,11 @@ export class QuestVerificationService implements OnModuleInit {
     }
 
     // Check cache first
-    const cached = this.followCache.get(userFid);
-    if (cached && cached.expiry > Date.now()) {
-      this.logger.debug(`Cache hit for FID ${userFid}: ${cached.result}`);
-      return cached.result;
-    }
+    // const cached = this.followCache.get(userFid);
+    // if (cached && cached.expiry > Date.now()) {
+    //   this.logger.debug(`Cache hit for FID ${userFid}: ${cached.result}`);
+    //   return cached.result;
+    // }
 
     if (!this.neynarClient) {
       this.logger.error('Neynar client not initialized');
@@ -289,6 +288,41 @@ export class QuestVerificationService implements OnModuleInit {
       return isFollowing;
     } catch (error) {
       this.logger.error('Error checking Farcaster follow:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user shared basecard on Farcaster
+   * Checks last 10 casts for "basecard" or "minted my basecard"
+   */
+  private async checkFarcasterShare(userFid?: number): Promise<boolean> {
+    if (!userFid) return false;
+    if (!this.neynarClient) return false;
+
+    try {
+      const { casts } = await this.neynarClient.fetchCastsForUser({
+        fid: userFid,
+        limit: 5,
+      });
+
+      this.logger.debug(`Fetched ${casts.length} casts for FID ${userFid}`);
+
+      let hasShared = false;
+
+      casts.forEach((cast) => {
+        const text = cast.text.toLowerCase();
+        this.logger.debug(`Cast text: ${text}`);
+        // Check for keywords
+        if (text.includes('basecard') || text.includes('minted my basecard')) {
+          hasShared = true;
+        }
+      });
+
+      this.logger.debug(`FID ${userFid} shared BaseCard: ${hasShared}`);
+      return hasShared;
+    } catch (err) {
+      this.logger.error(`Failed to check Farcaster share: ${err}`);
       return false;
     }
   }

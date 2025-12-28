@@ -32,22 +32,31 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$DB_NAME" <<-EOSQL
     -- ============================================
     -- AI Agent gets its own schema
     CREATE SCHEMA IF NOT EXISTS ai_agent;
+    -- Drizzle uses 'drizzle' schema for migrations
+    CREATE SCHEMA IF NOT EXISTS drizzle;
 
     -- ============================================
     -- Grant Privileges
     -- ============================================
-    -- Backend user: full access to public schema
+    -- Backend user: full access to public schema + drizzle schema for migrations
     GRANT ALL PRIVILEGES ON SCHEMA public TO $BACKEND_USER;
+    GRANT ALL PRIVILEGES ON SCHEMA drizzle TO $BACKEND_USER;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $BACKEND_USER;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $BACKEND_USER;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA drizzle GRANT ALL ON TABLES TO $BACKEND_USER;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA drizzle GRANT ALL ON SEQUENCES TO $BACKEND_USER;
 
     -- AI Agent user: full access to ai_agent schema
     GRANT ALL PRIVILEGES ON SCHEMA ai_agent TO $AI_AGENT_USER;
     ALTER DEFAULT PRIVILEGES IN SCHEMA ai_agent GRANT ALL ON TABLES TO $AI_AGENT_USER;
     ALTER DEFAULT PRIVILEGES IN SCHEMA ai_agent GRANT ALL ON SEQUENCES TO $AI_AGENT_USER;
     
-    -- AI Agent also needs USAGE on public schema (for shared tables if needed)
+    -- AI Agent needs access to public schema for foreign key references
     GRANT USAGE ON SCHEMA public TO $AI_AGENT_USER;
+    -- Allow SELECT on public tables (for JOINs and lookups)
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO $AI_AGENT_USER;
+    -- Allow REFERENCES on public tables (for foreign keys like REFERENCES public.users)
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT REFERENCES ON TABLES TO $AI_AGENT_USER;
 
 EOSQL
 

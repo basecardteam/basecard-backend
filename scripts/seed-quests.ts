@@ -28,7 +28,7 @@ async function seed() {
       description: 'Mint your first onchain ID card',
       platform: 'APP' as const,
       actionType: 'APP_BASECARD_MINT',
-      rewardAmount: 200,
+      rewardAmount: 500,
       frequency: 'ONCE' as const,
     },
     {
@@ -44,24 +44,17 @@ async function seed() {
       description: 'Add BaseCard to your Farcaster apps',
       platform: 'APP' as const,
       actionType: 'APP_ADD_MINIAPP',
-      rewardAmount: 100,
+      rewardAmount: 200,
       frequency: 'ONCE' as const,
     },
     // FARCASTER Platform
-    {
-      title: 'Link Farcaster',
-      description: 'Link your Farcaster account',
-      platform: 'FARCASTER' as const,
-      actionType: 'FC_LINK',
-      rewardAmount: 10,
-      frequency: 'ONCE' as const,
-    },
+
     {
       title: 'Share on Farcaster',
       description: 'Share your BaseCard on Farcaster',
       platform: 'FARCASTER' as const,
       actionType: 'FC_SHARE',
-      rewardAmount: 200,
+      rewardAmount: 400,
       frequency: 'ONCE' as const,
     },
     {
@@ -69,7 +62,7 @@ async function seed() {
       description: 'Follow the official basecard account on Farcaster',
       platform: 'FARCASTER' as const,
       actionType: 'FC_FOLLOW',
-      rewardAmount: 200,
+      rewardAmount: 300,
       frequency: 'ONCE' as const,
     },
     // X Platform
@@ -78,7 +71,7 @@ async function seed() {
       description: 'Link your X account',
       platform: 'X' as const,
       actionType: 'X_LINK',
-      rewardAmount: 10,
+      rewardAmount: 500,
       frequency: 'ONCE' as const,
     },
     // GITHUB Platform
@@ -87,7 +80,7 @@ async function seed() {
       description: 'Link your Github account',
       platform: 'GITHUB' as const,
       actionType: 'GH_LINK',
-      rewardAmount: 10,
+      rewardAmount: 500,
       frequency: 'ONCE' as const,
     },
     // LINKEDIN Platform
@@ -96,7 +89,7 @@ async function seed() {
       description: 'Link your LinkedIn account',
       platform: 'LINKEDIN' as const,
       actionType: 'LI_LINK',
-      rewardAmount: 10,
+      rewardAmount: 500,
       frequency: 'ONCE' as const,
     },
   ];

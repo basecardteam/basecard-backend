@@ -9,6 +9,7 @@ import { EvmLib } from '../blockchain/evm.lib';
 import { BasecardsService } from '../basecards/basecards.service';
 import { AppConfigService } from '../../app/configs/app-config.service';
 import { FarcasterProfile } from '../basecards/types/basecard.types';
+import { getClientTypeFromFid, CLIENT_FIDS } from '../../app/constants';
 
 // Re-export for backward compatibility
 export type { FarcasterProfile };
@@ -224,10 +225,10 @@ export class UsersService {
   async addClientWallet(
     userId: string,
     walletAddress: string,
-    clientType: 'farcaster' | 'baseapp' | 'metamask',
-    clientFid?: number,
+    clientFid: number,
   ): Promise<void> {
     const safeAddress = walletAddress.toLowerCase();
+    const clientType = getClientTypeFromFid(clientFid);
 
     // Check if already exists
     const existing = await this.db.query.userWallets.findFirst({
@@ -245,6 +246,100 @@ export class UsersService {
         `Added ${clientType} wallet for user ${userId}: ${safeAddress}`,
       );
     }
+  }
+
+  /**
+   * Upsert notification token/url for user wallet
+   * Used when user adds miniapp and wants to enable notifications
+   */
+  async upsertNotification(
+    userId: string,
+    walletAddress: string,
+    clientFid: number,
+    notificationToken: string,
+    notificationUrl: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const safeAddress = walletAddress.toLowerCase();
+
+    // Find wallet matching clientFid for this user
+    const wallet = await this.db.query.userWallets.findFirst({
+      where: eq(schema.userWallets.walletAddress, safeAddress),
+    });
+
+    if (!wallet) {
+      // Create wallet if not exists
+      const clientType = getClientTypeFromFid(clientFid);
+      await this.db.insert(schema.userWallets).values({
+        userId,
+        walletAddress: safeAddress,
+        clientType,
+        clientFid,
+        miniappAdded: true,
+        notificationEnabled: true,
+        notificationToken,
+        notificationUrl,
+      });
+      this.logger.log(`Created wallet with notification for user ${userId}`);
+      return { success: true, message: 'Wallet and notification created' };
+    }
+
+    // Update existing wallet
+    await this.db
+      .update(schema.userWallets)
+      .set({
+        miniappAdded: true,
+        notificationEnabled: true,
+        notificationToken,
+        notificationUrl,
+      })
+      .where(eq(schema.userWallets.id, wallet.id));
+
+    this.logger.log(`Updated notification for wallet ${wallet.id}`);
+    return { success: true, message: 'Notification updated' };
+  }
+
+  /**
+   * Update miniapp added status for user wallet
+   */
+  async upsertMiniAppAdded(
+    userId: string,
+    walletAddress: string,
+    clientFid: number,
+  ): Promise<{ success: boolean; message: string }> {
+    const safeAddress = walletAddress.toLowerCase();
+
+    // Find wallet matching clientFid for this user
+    const wallet = await this.db.query.userWallets.findFirst({
+      where: eq(schema.userWallets.walletAddress, safeAddress),
+    });
+
+    if (!wallet) {
+      // Create wallet if not exists
+      const clientType = getClientTypeFromFid(clientFid);
+      await this.db.insert(schema.userWallets).values({
+        userId,
+        walletAddress: safeAddress,
+        clientType,
+        clientFid,
+        miniappAdded: true,
+      });
+      this.logger.log(`Created wallet with miniapp added for user ${userId}`);
+      return {
+        success: true,
+        message: 'Wallet created and miniapp marked added',
+      };
+    }
+
+    // Update existing wallet
+    await this.db
+      .update(schema.userWallets)
+      .set({
+        miniappAdded: true,
+      })
+      .where(eq(schema.userWallets.id, wallet.id));
+
+    this.logger.log(`Updated miniapp added for wallet ${wallet.id}`);
+    return { success: true, message: 'Miniapp marked as added' };
   }
 
   /**
@@ -294,16 +389,9 @@ export class UsersService {
 
       for (const auth of authAddresses) {
         const appFid = auth.app?.fid;
-        let clientType: 'farcaster' | 'baseapp' = 'farcaster';
-
-        // Determine client type based on app FID
-        if (appFid === 309857) {
-          clientType = 'baseapp';
-        } else if (appFid === 9152) {
-          clientType = 'farcaster';
+        if (appFid) {
+          await this.addClientWallet(userId, auth.address, appFid);
         }
-
-        await this.addClientWallet(userId, auth.address, clientType, appFid);
       }
 
       this.logger.log(

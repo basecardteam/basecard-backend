@@ -62,7 +62,10 @@ export class UserQuestsService {
    * Verify all pending quests for a user and update their status
    * This should be called on login or explicitly by the user
    */
-  async verifyQuestsForUser(userId: string): Promise<{
+  async verifyQuestsForUser(
+    userId: string,
+    actionType?: string,
+  ): Promise<{
     verified: number;
     quests: { questId: string; actionType: string; status: string }[];
   }> {
@@ -74,9 +77,15 @@ export class UserQuestsService {
       return { verified: 0, quests: [] };
     }
 
-    // Get all active quests
+    // Get all active quests (optionally filtered by actionType)
     const quests = await this.db.query.quests.findMany({
-      where: eq(schema.quests.isActive, true),
+      where:
+        actionType && actionType !== 'ALL'
+          ? and(
+              eq(schema.quests.isActive, true),
+              eq(schema.quests.actionType, actionType),
+            )
+          : eq(schema.quests.isActive, true),
     });
 
     // Get user's current quest statuses
@@ -200,16 +209,15 @@ export class UserQuestsService {
       `Claiming quest ${quest.title} (${questId}) for user ${userId}`,
     );
 
-    // 3. Check if already claimed
-    const existingClaim = await this.db.query.userQuests.findFirst({
+    // 3. Check if already claimed or claimable
+    const userQuest = await this.db.query.userQuests.findFirst({
       where: and(
         eq(schema.userQuests.userId, userId),
         eq(schema.userQuests.questId, quest.id),
-        eq(schema.userQuests.status, 'completed'),
       ),
     });
 
-    if (existingClaim) {
+    if (userQuest?.status === 'completed') {
       this.logger.debug(
         `Quest ${quest.actionType} (${questId}) already claimed by user ${userId}`,
       );
@@ -227,12 +235,16 @@ export class UserQuestsService {
       );
     }
 
-    // 5. Verify quest condition using QuestVerificationService
-    const isVerified = await this.questVerificationService.verify(
-      quest.platform as Platform,
-      quest.actionType as ActionType,
-      { address: user.walletAddress, fid: user.fid ?? undefined },
-    );
+    // 5. Verify quest condition (skip if already verified/claimable)
+    let isVerified = userQuest?.status === 'claimable';
+
+    if (!isVerified) {
+      isVerified = await this.questVerificationService.verify(
+        quest.platform as Platform,
+        quest.actionType as ActionType,
+        { address: user.walletAddress, fid: user.fid ?? undefined },
+      );
+    }
 
     if (!isVerified) {
       this.logger.debug(

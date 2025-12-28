@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1766418064391,
-      "tag": "0000_stale_gabe_jones",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1766474621239,
-      "tag": "0001_add-notification-fields",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1766491965566,
-      "tag": "0002_add-miniapp-status-flags",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1766527464211,
-      "tag": "0003_add-farcaster-pfp-cache",
+      "when": 1766910073456,
+      "tag": "0000_curved_tattoo",
       "breakpoints": true
     }
   ]

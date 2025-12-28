@@ -101,6 +101,8 @@ export const basecards = pgTable(
       .notNull()
       .unique(),
 
+    tokenOwner: varchar('token_owner', { length: 42 }).notNull(), // Actual wallet address owning the token
+
     // Contract Metadata Mirroring
     tokenId: integer('token_id'),
     txHash: text('tx_hash'),

@@ -37,6 +37,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private basecardsService: BasecardsService,
+    private usersService: UsersService,
     private appConfigService: AppConfigService,
     private evmLib: EvmLib,
     private ipfsService: IpfsService,
@@ -435,6 +436,13 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.log(
         `Updated card ${user.card.id} with onchain data for token ${tokenId}`,
+      );
+
+      // 6. Invalidate caches so GET /users/me returns fresh data
+      this.usersService.invalidateUserCache(user.id);
+      this.basecardsService.invalidateCache(user.card.id);
+      this.logger.debug(
+        `Cache invalidated for user ${user.id} and card ${user.card.id}`,
       );
 
       // 6. Cleanup old IPFS files, keeping only the latest one

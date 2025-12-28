@@ -8,6 +8,7 @@ CREATE TYPE "public"."user_role" AS ENUM('user', 'admin');--> statement-breakpoi
 CREATE TABLE "basecards" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
+	"token_owner" varchar(42) NOT NULL,
 	"token_id" integer,
 	"tx_hash" text,
 	"nickname" varchar(256),
@@ -67,6 +68,17 @@ CREATE TABLE "farcaster_notifications" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
+CREATE TABLE "notification_logs" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"notification_id" varchar(100) NOT NULL,
+	"user_id" uuid,
+	"type" varchar(50) NOT NULL,
+	"target_id" varchar(100),
+	"recipient_count" integer DEFAULT 0,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "notification_logs_notification_id_unique" UNIQUE("notification_id")
+);
+--> statement-breakpoint
 CREATE TABLE "point_logs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
@@ -106,6 +118,10 @@ CREATE TABLE "user_wallets" (
 	"wallet_address" varchar(42) NOT NULL,
 	"client_type" "client_type" NOT NULL,
 	"client_fid" integer,
+	"miniapp_added" boolean DEFAULT false,
+	"notification_enabled" boolean DEFAULT false,
+	"notification_token" varchar(255),
+	"notification_url" varchar(512),
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -117,6 +133,8 @@ CREATE TABLE "users" (
 	"total_points" integer DEFAULT 0 NOT NULL,
 	"is_new_user" boolean DEFAULT true,
 	"has_minted_card" boolean DEFAULT false,
+	"farcaster_pfp_url" varchar(512),
+	"farcaster_pfp_updated_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_wallet_address_unique" UNIQUE("wallet_address"),
@@ -128,6 +146,7 @@ ALTER TABLE "collections" ADD CONSTRAINT "collections_collector_user_id_users_id
 ALTER TABLE "collections" ADD CONSTRAINT "collections_collected_card_id_basecards_id_fk" FOREIGN KEY ("collected_card_id") REFERENCES "public"."basecards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "earn" ADD CONSTRAINT "earn_owner_user_id_users_id_fk" FOREIGN KEY ("owner_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "farcaster_notifications" ADD CONSTRAINT "farcaster_notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notification_logs" ADD CONSTRAINT "notification_logs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "point_logs" ADD CONSTRAINT "point_logs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "point_logs" ADD CONSTRAINT "point_logs_quest_id_quests_id_fk" FOREIGN KEY ("quest_id") REFERENCES "public"."quests"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "point_logs" ADD CONSTRAINT "point_logs_event_id_contract_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."contract_events"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

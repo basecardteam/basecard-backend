@@ -8,12 +8,7 @@ import { DRIZZLE } from '../../db/db.module';
 import * as schema from '../../db/schema';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq, and } from 'drizzle-orm';
-
-// Known client FIDs
-const CLIENT_FIDS = {
-  WARPCAST: 9152,
-  BASEAPP: 309857,
-} as const;
+import { CLIENT_FIDS } from '../../app/constants';
 
 interface WebhookEvent {
   event:

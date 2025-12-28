@@ -7,6 +7,7 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -43,21 +44,48 @@ export class UserQuestsController {
 
   @Post('verify')
   @ApiOperation({
-    summary: 'Verify all pending quests for the current user',
+    summary: 'Verify specific quest action for the current user',
     description:
-      'Checks all pending quests and updates their status if conditions are met',
+      'Checks specific quest action and updates status if conditions are met',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification result',
+  })
+  async verifyQuests(
+    @Request() req: any,
+    @Body() body: { actionType: string },
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in token');
+    }
+    if (!body.actionType) {
+      throw new BadRequestException('actionType is required');
+    }
+
+    this.logger.log(
+      `Verify quests request for userId=${userId}, actionType=${body.actionType}`,
+    );
+    return this.userQuestsService.verifyQuestsForUser(userId, body.actionType);
+  }
+
+  @Post('verify/all')
+  @ApiOperation({
+    summary: 'Verify all pending quests for the current user',
+    description: 'Checks all pending quests and updates their status',
   })
   @ApiResponse({
     status: 200,
     description: 'Verification result with count of verified quests',
   })
-  async verifyQuests(@Request() req: any) {
+  async verifyAllQuests(@Request() req: any) {
     const userId = req.user?.userId;
     if (!userId) {
       throw new ForbiddenException('User ID not found in token');
     }
 
-    this.logger.log(`Verify quests request for userId=${userId}`);
+    this.logger.log(`Verify all quests request for userId=${userId}`);
     return this.userQuestsService.verifyQuestsForUser(userId);
   }
 

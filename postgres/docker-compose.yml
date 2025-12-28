@@ -8,7 +8,12 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-basecard}
+      # Service users (used by init_db/01_init.sh)
+      BACKEND_USER: ${BACKEND_USER:-basecard_user}
+      BACKEND_PASSWORD: ${BACKEND_PASSWORD:-basecard_password}
+      AI_AGENT_USER: ${AI_AGENT_USER:-ai_agent_user}
+      AI_AGENT_PASSWORD: ${AI_AGENT_PASSWORD:-ai_agent_password}
     volumes:
       - /data2/postgres:/var/lib/postgresql/data
       - ./init_db:/docker-entrypoint-initdb.d:ro
@@ -19,3 +24,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - basecard-network
+
+networks:
+  basecard-network:
+    name: basecard-network
+    driver: bridge

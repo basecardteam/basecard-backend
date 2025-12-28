@@ -11,6 +11,7 @@ import { UsersService } from '../users/users.service';
 import { UserQuestsService } from '../user-quests/user-quests.service';
 import { verifyMessage } from 'viem';
 import { Errors, createClient } from '@farcaster/quick-auth';
+import { CLIENT_FIDS } from '../../app/constants';
 
 @Injectable()
 export class AuthService {
@@ -29,9 +30,7 @@ export class AuthService {
    * Validates Farcaster Quick Auth token and returns the user's primary Ethereum address.
    * Uses @farcaster/quick-auth library for secure JWT verification.
    */
-  async validateFarcasterToken(
-    token: string,
-  ): Promise<{ address: string; fid: number }> {
+  async validateFarcasterToken(token: string): Promise<{ fid: number }> {
     try {
       // Verify JWT using Farcaster Quick Auth
       const domain = this.configService.get<string>(
@@ -45,15 +44,7 @@ export class AuthService {
 
       this.logger.debug(`Farcaster Auth Debug: FID=${payload.sub}`);
 
-      // Fetch primary Ethereum address for the FID
-      const address = await this.resolvePrimaryAddress(payload.sub);
-      this.logger.debug(`Farcaster Client User Address: ${address}`);
-
-      if (!address) {
-        throw new Error('No primary address found for FID');
-      }
-
-      return { address, fid: payload.sub };
+      return { fid: payload.sub };
     } catch (e) {
       if (e instanceof Errors.InvalidTokenError) {
         this.logger.error(`Farcaster token invalid: ${e.message}`);
@@ -76,6 +67,7 @@ export class AuthService {
       );
 
       if (res.ok) {
+        this.logger.debug(`Farcaster Client Primary Address: ${res}`);
         const { result } = (await res.json()) as {
           result: {
             address: {
@@ -111,7 +103,9 @@ export class AuthService {
       });
       return valid;
     } catch (e) {
-      this.logger.error(`Wallet signature verification failed: ${e.message}`);
+      this.logger.error(
+        `Wallet signature verification failed: ${e.message}, User address: ${address}`,
+      );
       return false;
     }
   }
@@ -145,7 +139,12 @@ export class AuthService {
 
     this.logger.debug(`[TIMING] Login sync: ${Date.now() - totalStart}ms`);
 
-    // 3. Fire-and-forget: Background initialization
+    // 3. Fire-and-forget: Always add current login wallet first
+    this.usersService
+      .addClientWallet(user.id, loginAddress, clientFid)
+      .catch((err) => this.logger.debug('Failed to add login wallet:', err));
+
+    // 4. Fire-and-forget: Fetch additional wallets from Neynar (if any)
     if (isNewUser) {
       this.initializeUserBackground(user.id, fid);
     }
@@ -184,7 +183,11 @@ export class AuthService {
     }
 
     // Track as metamask wallet
-    await this.usersService.addClientWallet(user!.id, safeAddress, 'metamask');
+    await this.usersService.addClientWallet(
+      user!.id,
+      safeAddress,
+      CLIENT_FIDS.METAMASK,
+    );
 
     // Auto-verify quests on login (fire-and-forget)
     this.userQuestsService
