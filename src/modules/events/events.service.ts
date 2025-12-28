@@ -305,20 +305,23 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private async handleMintBaseCard(
     event: typeof schema.contractEvents.$inferSelect,
   ) {
-    const args = event.args as { user: string; tokenId: number | string };
+    const args = event.args as {
+      tokenOwnerAddress: string;
+      tokenId: number | string;
+    };
 
-    if (!args.user || args.tokenId === undefined) {
+    if (!args.tokenOwnerAddress || args.tokenId === undefined) {
       throw new Error('Invalid args for MintBaseCard');
     }
 
     const tokenId = Number(args.tokenId);
     this.logger.log(
-      `Processing MintBaseCard: User ${args.user}, TokenId ${tokenId}`,
+      `Processing MintBaseCard: User ${args.tokenOwnerAddress}, TokenId ${tokenId}`,
     );
 
     // Update BaseCard with Token ID (This also updates hasMintedCard)
     await this.basecardsService.updateTokenId(
-      args.user,
+      args.tokenOwnerAddress,
       tokenId,
       event.transactionHash,
     );
@@ -326,7 +329,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     // Mark MINT quest as claimable
     try {
       const user = await this.db.query.users.findFirst({
-        where: eq(schema.users.walletAddress, args.user.toLowerCase()),
+        where: eq(
+          schema.users.walletAddress,
+          args.tokenOwnerAddress.toLowerCase(),
+        ),
       });
 
       if (user) {
@@ -345,13 +351,13 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
               ),
             );
           this.logger.log(
-            `MINT quest marked as claimable for user ${args.user}`,
+            `MINT quest marked as claimable for user ${args.tokenOwnerAddress}`,
           );
         }
       }
     } catch (error) {
       this.logger.error(
-        `Failed to update quest status for user ${args.user}`,
+        `Failed to update quest status for user ${args.tokenOwnerAddress}`,
         error,
       );
     }
