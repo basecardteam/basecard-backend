@@ -12,7 +12,7 @@
     "dev": "nest start --watch",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node --enable-source-maps dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -25,7 +25,7 @@
     "db:studio": "drizzle-kit studio",
     "reset:db": "ts-node scripts/reset-db.ts",
     "reset:bucket": "ts-node scripts/reset-bucket.ts",
-    "reset:all": "npm run reset:db && npm run reset:bucket && npm run db:generate && npm run db:migrate && npm run db:seed",
+    "reset:all": "npm run reset:db && npm run db:generate && npm run db:migrate && npm run db:seed",
     "db:check": "ts-node scripts/check-db-connection.ts",
     "db:seed": "ts-node scripts/seed-quests.ts && npm run add-admin-address",
     "test:services": "ts-node scripts/test-services.ts",
@@ -34,7 +34,8 @@
     "test:auth-flow-admin": "ts-node scripts/test-auth-flow-admin.ts",
     "add-admin-address": "ts-node scripts/add-admin.ts",
     "test:neynar": "ts-node scripts/test-neynar-api.ts",
-    "docker:test": "./scripts/docker-local-test.sh"
+    "docker:test": "./scripts/docker-local-test.sh",
+    "docker:local": "docker compose -f docker-compose.local.yml up -d --build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.940.0",
