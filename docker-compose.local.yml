@@ -1,5 +1,8 @@
-# Local development docker-compose
-# Usage: docker compose -f docker-compose.local.yml up --build
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   basecard-backend:
@@ -8,7 +11,7 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=${PORT:-4000}
     ports:
       - "${PORT:-4000}:${PORT:-4000}"
@@ -18,3 +21,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    networks:
+      - basecard-network
+    logging: *default-logging
+
+networks:
+  basecard-network:
+    external: true
