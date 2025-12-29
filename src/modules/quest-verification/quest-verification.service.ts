@@ -6,6 +6,7 @@ import { Platform, ActionType } from '../quests/quest-types';
 import { DRIZZLE } from '../../db/db.module';
 import * as schema from '../../db/schema';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { BaseCardMetadata } from '../basecards/types/basecard.types';
 import { eq } from 'drizzle-orm';
 
 /**
@@ -17,6 +18,7 @@ export interface VerificationContext {
   address: string;
   tokenId?: number;
   fid?: number; // Farcaster ID
+  cardData?: BaseCardMetadata | null;
   // Add more context as needed (e.g., GitHub handle, etc.)
 }
 
@@ -60,6 +62,10 @@ export class QuestVerificationService implements OnModuleInit {
       if (ctx.tokenId === undefined) {
         const fetchedTokenId = await this.evmLib.getTokenId(ctx.address);
         ctx.tokenId = fetchedTokenId ?? undefined;
+
+        if (fetchedTokenId) {
+          ctx.cardData = await this.evmLib.getCardData(fetchedTokenId);
+        }
       }
 
       let result = false;
@@ -327,7 +333,7 @@ export class QuestVerificationService implements OnModuleInit {
 
       casts.forEach((cast) => {
         const text = cast.text.toLowerCase();
-        this.logger.debug(`Cast text: ${text}`);
+        // this.logger.debug(`Cast text: ${text}`);
         // Check for keywords
         if (text.includes('basecard') || text.includes('minted my basecard')) {
           hasShared = true;

@@ -133,7 +133,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       fid: user.fid,
-      walletAddress: loginAddress.toLowerCase(),
+      loginAddress: loginAddress.toLowerCase(),
       role: user.role,
     };
 
@@ -150,7 +150,7 @@ export class AuthService {
     }
 
     return {
-      access_token: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload),
       user,
     };
   }
@@ -206,12 +206,12 @@ export class AuthService {
     const payload = {
       sub: user!.id,
       fid: user!.fid,
-      walletAddress: safeAddress,
+      loginAddress: safeAddress,
       role: user!.role,
     };
 
     return {
-      access_token: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload),
       user,
     };
   }

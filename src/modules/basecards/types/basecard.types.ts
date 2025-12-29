@@ -29,3 +29,14 @@ export interface BasecardDetail extends BasecardListItem {
   fid: number | null;
   farcasterPfpUrl: string | null;
 }
+
+/**
+ * On-chain BaseCard metadata structure
+ */
+export interface BaseCardMetadata {
+  nickname: string;
+  role: string;
+  bio: string;
+  imageUri: string;
+  socials: { key: string; value: string }[];
+}

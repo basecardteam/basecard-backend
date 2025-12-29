@@ -52,7 +52,7 @@ export class UsersController {
     },
   ) {
     const userId = req.user?.userId;
-    const walletAddress = req.user?.walletAddress;
+    const walletAddress = req.user?.loginAddress;
 
     this.logger.log(
       `Upserting notification for user ${userId}, clientFid=${body.clientFid}`,
@@ -76,7 +76,7 @@ export class UsersController {
     },
   ) {
     const userId = req.user?.userId;
-    const walletAddress = req.user?.walletAddress;
+    const walletAddress = req.user?.loginAddress;
 
     this.logger.log(
       `Marking miniapp added for user ${userId}, clientFid=${body.clientFid}`,

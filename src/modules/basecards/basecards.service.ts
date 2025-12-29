@@ -226,12 +226,15 @@ export class BasecardsService {
     );
 
     // Simulate Contract Call (Backend Validation)
+    // Sanitize socials (remove query params from URLs)
+    const sanitizedSocials = this.sanitizeSocials(
+      createBasecardDto.socials || {},
+    );
+
     // Filter out empty social values to avoid unnecessary onchain storage
-    const filteredSocials = createBasecardDto.socials
-      ? Object.entries(createBasecardDto.socials).filter(
-          ([, value]) => value && value.trim() !== '',
-        )
-      : [];
+    const filteredSocials = Object.entries(sanitizedSocials).filter(
+      ([, value]) => value && value.trim() !== '',
+    );
     const socialKeys = filteredSocials.map(([key]) => key);
     const socialValues = filteredSocials.map(([, value]) => value);
 
@@ -261,7 +264,7 @@ export class BasecardsService {
           role: createBasecardDto.role,
           bio: createBasecardDto.bio,
           imageUri: imageURI,
-          socials: createBasecardDto.socials,
+          socials: sanitizedSocials,
         })
         .returning();
 
@@ -456,6 +459,7 @@ export class BasecardsService {
     };
     social_keys: string[];
     social_values: string[];
+    tokenId: number;
     // For rollback if tx rejected
     uploadedFiles?: {
       ipfsId: string;
@@ -471,7 +475,8 @@ export class BasecardsService {
     const nickname = updateData.nickname ?? '';
     const role = updateData.role ?? '';
     const bio = updateData.bio ?? '';
-    const socials = updateData.socials ? { ...updateData.socials } : {};
+    const rawSocials = updateData.socials ? { ...updateData.socials } : {};
+    const socials = this.sanitizeSocials(rawSocials);
 
     // 3. Handle removal: if a handle was in DB but not in update request, add it as empty string
     // This ensures it is properly cleared on-chain during editBaseCard call
@@ -557,6 +562,7 @@ export class BasecardsService {
       },
       social_keys: socialKeys,
       social_values: socialValues,
+      tokenId,
       uploadedFiles,
     };
   }
@@ -697,19 +703,8 @@ export class BasecardsService {
   }
 
   async findByAddress(address: string) {
-    const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address.toLowerCase()),
-    });
-
-    if (!user) {
-      return null;
-    }
-
     return this.db.query.basecards.findFirst({
-      where: eq(schema.basecards.userId, user.id),
-      with: {
-        user: true,
-      },
+      where: eq(schema.basecards.tokenOwner, address.toLowerCase()),
     });
   }
 
@@ -759,5 +754,39 @@ export class BasecardsService {
       .delete(schema.basecards)
       .where(eq(schema.basecards.userId, user.id));
     return { success: true };
+  }
+
+  /**
+   * Helper to sanitize social URLs (e.g. remove query params from LinkedIn)
+   */
+  private sanitizeSocials(
+    socials: Record<string, string>,
+  ): Record<string, string> {
+    const sanitized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(socials)) {
+      if (!value) continue;
+
+      if (key === 'linkedin') {
+        try {
+          // Check if it looks like a URL
+          if (value.startsWith('http://') || value.startsWith('https://')) {
+            const url = new URL(value);
+            // Remove search params
+            url.search = '';
+            sanitized[key] = url.toString();
+          } else {
+            // It's likely a handle, keep as is
+            sanitized[key] = value;
+          }
+        } catch (e) {
+          // Fallback: if URL parsing fails, just keep original
+          sanitized[key] = value;
+        }
+      } else {
+        // For other keys, keep as is
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
   }
 }

@@ -3,6 +3,7 @@ import { AppConfigService } from '../../app/configs/app-config.service';
 import { createPublicClient, http, fallback, webSocket } from 'viem';
 import { baseSepolia, base } from 'viem/chains';
 import * as BaseCardABI from './abi/BaseCard.json';
+import { BaseCardMetadata } from '../basecards/types/basecard.types';
 
 @Injectable()
 export class EvmLib {
@@ -93,13 +94,14 @@ export class EvmLib {
    * Get card data from onchain tokenURI
    * Parses the base64 encoded JSON metadata
    */
-  async getCardData(tokenId: number): Promise<{
-    nickname: string;
-    role: string;
-    bio: string;
-    imageUri: string;
-    socials: { key: string; value: string }[];
-  } | null> {
+
+  // ... (existing code)
+
+  /**
+   * Get card data from onchain tokenURI
+   * Parses the base64 encoded JSON metadata
+   */
+  async getCardData(tokenId: number): Promise<BaseCardMetadata | null> {
     try {
       const tokenUri = await this.client.readContract({
         address: this.contractAddress as `0x${string}`,

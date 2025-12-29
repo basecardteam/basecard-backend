@@ -10,6 +10,8 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "dev": "nest start --watch",
+    "dev:dev": "dotenv -e .env.dev -- nest start --watch",
+    "dev:prod": "dotenv -e .env.prod.local -- nest start --watch",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node --enable-source-maps dist/main",

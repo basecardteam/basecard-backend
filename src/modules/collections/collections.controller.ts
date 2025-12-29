@@ -49,7 +49,7 @@ export class CollectionsController {
 
   @Get(':id')
   async findOne(@Request() req: any, @Param('id') id: string) {
-    const walletAddress = req.user?.walletAddress;
+    const walletAddress = req.user?.loginAddress;
     const collection = await this.collectionsService.findOne(id);
     // Verify ownership
     if (
@@ -68,7 +68,7 @@ export class CollectionsController {
     @Param('id') id: string,
     @Body() updateCollectionDto: UpdateCollectionDto,
   ) {
-    const walletAddress = req.user?.walletAddress;
+    const walletAddress = req.user?.loginAddress;
     const collection = await this.collectionsService.findOne(id);
     // Verify ownership
     if (
@@ -83,7 +83,7 @@ export class CollectionsController {
 
   @Delete(':id')
   async remove(@Request() req: any, @Param('id') id: string) {
-    const walletAddress = req.user?.walletAddress;
+    const walletAddress = req.user?.loginAddress;
     const collection = await this.collectionsService.findOne(id);
     // Verify ownership
     if (

@@ -51,9 +51,10 @@ export class BasecardsController {
   }
 
   @Get('me')
+  @Get('me')
   async findMyCard(@Request() req) {
     const userId = req.user?.userId;
-    const walletAddress = req.user?.walletAddress;
+    const walletAddress = req.user?.loginAddress;
 
     if (!userId) {
       throw new ForbiddenException('User ID not found in token');
@@ -91,7 +92,7 @@ export class BasecardsController {
   ) {
     // 디버그: 두 주소 비교
     this.logger.debug(
-      `Address check: JWT=${req.user?.walletAddress}, DTO=${createBasecardDto.address}, Role=${req.user?.role}`,
+      `Address check: JWT=${req.user?.loginAddress}, DTO=${createBasecardDto.address}, Role=${req.user?.role}`,
     );
 
     // Admin can create cards for any user
@@ -100,7 +101,7 @@ export class BasecardsController {
     // 본인 확인 (admin은 스킵)
     if (
       !isAdmin &&
-      req.user.walletAddress?.toLowerCase() !==
+      req.user.loginAddress?.toLowerCase() !==
         createBasecardDto.address?.toLowerCase()
     ) {
       throw new ForbiddenException('You can only create your own card');
@@ -167,24 +168,18 @@ export class BasecardsController {
     @Body() updateBasecardDto: UpdateBasecardDto,
     @Request() req,
   ): Promise<UpdateBaseCardResponse> {
-    const userId = req.user?.sub || req.user?.userId;
+    const userId = req.user?.userId;
     if (!userId) {
       throw new ForbiddenException('User ID not found in token');
     }
 
-    // Get user's card by userId
-    const existingCard = await this.basecardsService.findByUserId(userId);
-    if (!existingCard) {
-      throw new BadRequestException('You do not have a BaseCard');
-    }
-
-    const address = existingCard.user?.walletAddress;
-    if (!address) {
-      throw new BadRequestException('Wallet address not found');
+    const loginAddress = req.user?.loginAddress;
+    if (!loginAddress) {
+      throw new ForbiddenException('User address not found in token');
     }
 
     this.logger.debug(
-      `Update: ${address}, dto=${JSON.stringify(updateBasecardDto)}, file=${file ? `${file.originalname}(${file.size}B)` : 'none'}`,
+      `Update: ${loginAddress}, dto=${JSON.stringify(updateBasecardDto)}, file=${file ? `${file.originalname}(${file.size}B)` : 'none'}`,
     );
 
     try {
@@ -199,7 +194,7 @@ export class BasecardsController {
       }
 
       const result = await this.basecardsService.processUpdate(
-        address,
+        loginAddress,
         {
           nickname: updateBasecardDto.nickname,
           role: updateBasecardDto.role,
@@ -209,16 +204,11 @@ export class BasecardsController {
         file,
       );
 
-      const tokenId = existingCard.tokenId;
-      if (!tokenId) {
-        throw new Error('Token ID not found for this card');
-      }
-
       return {
         card_data: result.card_data,
         social_keys: result.social_keys,
         social_values: result.social_values,
-        token_id: tokenId,
+        token_id: result.tokenId,
         needs_rollback: !!result.uploadedFiles,
       };
     } catch (error) {
@@ -275,7 +265,7 @@ export class BasecardsController {
   @Delete(':address')
   removeByAddress(@Param('address') address: string, @Request() req) {
     // 본인 확인
-    if (req.user.walletAddress?.toLowerCase() !== address.toLowerCase()) {
+    if (req.user.loginAddress?.toLowerCase() !== address.toLowerCase()) {
       throw new ForbiddenException('You can only delete your own card');
     }
     return this.basecardsService.removeByAddress(address);

@@ -410,9 +410,20 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       }
 
       // 3. Find user in DB
+      const userId = await this.db.query.userWallets.findFirst({
+        where: eq(schema.userWallets.walletAddress, ownerAddress.toLowerCase()),
+      });
+
+      if (!userId) {
+        this.logger.warn(`User not found for address ${ownerAddress}`);
+        return;
+      }
+
       const user = await this.db.query.users.findFirst({
-        where: eq(schema.users.walletAddress, ownerAddress.toLowerCase()),
-        with: { card: true },
+        where: eq(schema.users.id, userId?.userId),
+        with: {
+          card: true,
+        },
       });
 
       if (!user) {

@@ -11,6 +11,8 @@ import { eq, and } from 'drizzle-orm';
 import { UsersService } from '../users/users.service';
 import { QuestVerificationService } from '../quest-verification/quest-verification.service';
 import { Platform, ActionType } from '../quests/quest-types';
+import { EvmLib } from '../blockchain/evm.lib';
+import { VerificationContext } from '../quest-verification/quest-verification.service';
 
 @Injectable()
 export class UserQuestsService {
@@ -20,6 +22,7 @@ export class UserQuestsService {
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private usersService: UsersService,
     private questVerificationService: QuestVerificationService,
+    private evmLib: EvmLib,
   ) {}
 
   /**
@@ -69,9 +72,8 @@ export class UserQuestsService {
     verified: number;
     quests: { questId: string; actionType: string; status: string }[];
   }> {
-    const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.id, userId),
-    });
+    // Should use UsersService to benefit from caching and relations (card, wallets)
+    const user = await this.usersService.findOne(userId);
 
     if (!user) {
       return { verified: 0, quests: [] };
@@ -89,6 +91,7 @@ export class UserQuestsService {
     });
 
     // Get user's current quest statuses
+    // Keeping direct DB query for now as per current structure, but ensuring we use the 'user' object from service
     const userQuests = await this.db.query.userQuests.findMany({
       where: eq(schema.userQuests.userId, userId),
     });
@@ -96,6 +99,45 @@ export class UserQuestsService {
     const results: { questId: string; actionType: string; status: string }[] =
       [];
     let verifiedCount = 0;
+
+    if (!user.card?.tokenOwner) {
+      this.logger.warn(
+        `User ${userId} has no card token owner, skipping verification`,
+      );
+      return { verified: 0, quests: [] };
+    }
+
+    // making verify context here..
+    const ctx: VerificationContext = {
+      address: user.card?.tokenOwner,
+      fid: user.fid ?? undefined,
+    };
+
+    // Pre-fetch blockchain data to avoid repeated calls
+    try {
+      // Use card's tokenId if available from relation
+      const tokenId = user.card?.tokenId
+        ? user.card.tokenId
+        : await this.evmLib.getTokenId(ctx.address);
+
+      if (tokenId) {
+        ctx.tokenId = tokenId;
+        ctx.cardData = await this.evmLib.getCardData(tokenId);
+        this.logger.debug(
+          `Pre-fetched blockchain data for user ${userId}: ${JSON.stringify(ctx)}`,
+        );
+      } else {
+        this.logger.debug(
+          `No blockchain data found for user ${userId}: ${JSON.stringify(ctx)}`,
+        );
+
+        return { verified: 0, quests: [] };
+      }
+    } catch (e) {
+      this.logger.warn(
+        `Failed to pre-fetch blockchain data for user ${userId}: ${e}`,
+      );
+    }
 
     // Check each pending quest
     await Promise.all(
@@ -105,12 +147,7 @@ export class UserQuestsService {
 
         // Only verify if pending
         if (currentStatus === 'pending') {
-          const isClaimable = await this.tryAutoVerify(
-            user.walletAddress,
-            user,
-            quest,
-            { fid: user.fid ?? undefined },
-          );
+          const isClaimable = await this.tryAutoVerify(quest, ctx);
 
           if (isClaimable) {
             this.logger.log(
@@ -161,16 +198,14 @@ export class UserQuestsService {
    * Try to auto-verify status for a quest using QuestVerificationService
    */
   private async tryAutoVerify(
-    address: string,
-    user: typeof schema.users.$inferSelect,
     quest: typeof schema.quests.$inferSelect,
-    data: { fid?: number },
+    ctx: VerificationContext,
   ): Promise<boolean> {
     // Delegate all verification to QuestVerificationService
     return this.questVerificationService.verify(
       quest.platform as Platform,
       quest.actionType as ActionType,
-      { address, fid: data.fid },
+      ctx,
     );
   }
 
