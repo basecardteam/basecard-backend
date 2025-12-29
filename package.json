@@ -32,6 +32,7 @@
     "db:prod:push": "dotenv -e .env.prod -- drizzle-kit push",
     "db:prod:studio": "dotenv -e .env.prod -- drizzle-kit studio",
     "db:prod:seed": "dotenv -e .env.prod -- ts-node scripts/seed-quests.ts && dotenv -e .env.prod -- npm run add-admin-address",
+    "db:prod:check": "dotenv -e .env.prod -- ts-node scripts/check-db-connection.ts",
     "test:services": "ts-node scripts/test-services.ts",
     "test:fetch-casts": "ts-node scripts/test-fetch-casts.ts",
     "test:auth-flow-user": "ts-node scripts/test-auth-flow-user.ts",
