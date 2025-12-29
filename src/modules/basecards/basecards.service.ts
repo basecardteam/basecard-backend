@@ -607,6 +607,10 @@ export class BasecardsService {
     });
   }
 
+  async delete(id: string) {
+    return this.remove(id);
+  }
+
   remove(id: string) {
     return this.db.delete(schema.basecards).where(eq(schema.basecards.id, id));
   }

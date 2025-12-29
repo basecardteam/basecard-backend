@@ -21,7 +21,7 @@ export interface VerificationContext {
 }
 
 @Injectable()
-export class QuestVerificationService implements OnModule  Init {
+export class QuestVerificationService implements OnModuleInit {
   private readonly logger = new Logger(QuestVerificationService.name);
   private neynarClient: NeynarAPIClient | null = null;
 

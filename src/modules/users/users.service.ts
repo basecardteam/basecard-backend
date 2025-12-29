@@ -422,7 +422,7 @@ export class UsersService {
     }
 
     const start = Date.now();
-    const result = await this.db.query.users.findFirst({
+    let result = await this.db.query.users.findFirst({
       where: eq(schema.users.id, id),
       with: {
         card: true,
@@ -430,6 +430,43 @@ export class UsersService {
       },
     });
     this.logger.debug(`[TIMING] findOne query: ${Date.now() - start}ms`);
+
+    // Sync logic: If user exists but card is missing or tokenId is null
+    if (result && (!result.card || !result.card.tokenId)) {
+      try {
+        const onchainTokenId = await this.evmLib.getTokenId(
+          result.walletAddress,
+        );
+
+        if (onchainTokenId) {
+          // Case 1: Onchain exists, DB missing -> Update DB
+          this.logger.log(
+            `Syncing missing tokenId ${onchainTokenId} for user ${id}`,
+          );
+          await this.basecardsService.updateTokenId(
+            result.walletAddress,
+            onchainTokenId,
+          );
+
+          // Fetch again to get updated data
+          result = await this.db.query.users.findFirst({
+            where: eq(schema.users.id, id),
+            with: { card: true, wallets: true },
+          });
+        } else if (result.card) {
+          // Case 2: Onchain missing, DB exists (orphaned) -> Delete from DB
+          this.logger.warn(
+            `Card found in DB but missing onchain for user ${id}. Deleting orphaned card.`,
+          );
+          await this.basecardsService.delete(result.card.id);
+
+          // Update result to reflect deletion
+          result.card = null as any;
+        }
+      } catch (error) {
+        this.logger.error(`Error syncing tokenId for user ${id}:`, error);
+      }
+    }
 
     // Update cache
     if (result) {
