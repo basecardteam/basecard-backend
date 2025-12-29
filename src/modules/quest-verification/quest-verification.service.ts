@@ -21,7 +21,7 @@ export interface VerificationContext {
 }
 
 @Injectable()
-export class QuestVerificationService implements OnModuleInit {
+export class QuestVerificationService implements OnModule  Init {
   private readonly logger = new Logger(QuestVerificationService.name);
   private neynarClient: NeynarAPIClient | null = null;
 
@@ -62,25 +62,40 @@ export class QuestVerificationService implements OnModuleInit {
         ctx.tokenId = fetchedTokenId ?? undefined;
       }
 
+      let result = false;
+
       switch (platform) {
         case 'FARCASTER':
-          return this.verifyFarcaster(actionType, ctx);
+          result = await this.verifyFarcaster(actionType, ctx);
+          break;
         case 'X':
-          return this.verifyX(actionType, ctx);
+          result = await this.verifyX(actionType, ctx);
+          break;
         case 'APP':
-          return this.verifyApp(actionType, ctx);
+          result = await this.verifyApp(actionType, ctx);
+          break;
         case 'GITHUB':
-          return this.verifyGithub(actionType, ctx);
+          result = await this.verifyGithub(actionType, ctx);
+          break;
         case 'LINKEDIN':
-          return this.verifyLinkedin(actionType, ctx);
+          result = await this.verifyLinkedin(actionType, ctx);
+          break;
         case 'BASENAME':
-          return this.verifyBasename(actionType, ctx);
+          result = await this.verifyBasename(actionType, ctx);
+          break;
         case 'WEBSITE':
-          return this.verifyWebsite(actionType, ctx);
+          result = await this.verifyWebsite(actionType, ctx);
+          break;
         default:
           this.logger.warn(`Unknown platform: ${platform}`);
-          return false;
+          result = false;
       }
+
+      this.logger.debug(
+        `Verification result [${platform}:${actionType}] for ${ctx.address}: ${result}`,
+      );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `Verification error [${platform}:${actionType}]: ${error.message}`,
