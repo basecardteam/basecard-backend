@@ -1,0 +1,1 @@
+DROP TABLE "farcaster_notifications" CASCADE;
