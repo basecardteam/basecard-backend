@@ -17,16 +17,18 @@ export class EvmLib {
     const chainId = this.appConfigService.chainId;
     const chain = chainId === 8453 ? base : baseSepolia;
 
-    // Create fallback transports from mixed URL list
-    const urls = this.appConfigService.baseRpcUrls;
-    const transports = urls.map((url) => {
-      if (url.startsWith('http')) return http(url);
-      return webSocket(url);
-    });
+    // Create fallback transports from separate URL lists
+    const wsUrls = this.appConfigService.baseWsRpcUrls;
+    const httpUrls = this.appConfigService.baseHttpRpcUrls;
+
+    const transports = [
+      ...wsUrls.map((url) => webSocket(url, { timeout: 2_000, retryCount: 0 })),
+      ...httpUrls.map((url) => http(url, { timeout: 2_000, retryCount: 0 })),
+    ];
 
     this.client = createPublicClient({
       chain,
-      transport: fallback(transports, { rank: true }),
+      transport: fallback(transports, { rank: false }),
     });
   }
 

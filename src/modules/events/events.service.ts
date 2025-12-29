@@ -43,22 +43,24 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     private ipfsService: IpfsService,
   ) {
     this.contractAddress = this.appConfigService.baseCardContractAddress;
-    const urls = this.appConfigService.baseRpcUrls;
 
     // Select chain based on configured CHAIN_ID
     const chainId = this.appConfigService.chainId;
     const chain = chainId === 8453 ? base : baseSepolia;
 
-    // Create fallback transports from mixed URL list
-    const transports = urls.map((url) => {
-      if (url.startsWith('http')) return http(url);
-      return webSocket(url);
-    });
+    // Create fallback transports from separate URL lists
+    const wsUrls = this.appConfigService.baseWsRpcUrls;
+    const httpUrls = this.appConfigService.baseHttpRpcUrls;
+
+    const transports = [
+      ...wsUrls.map((url) => webSocket(url, { timeout: 2_000, retryCount: 0 })),
+      ...httpUrls.map((url) => http(url, { timeout: 2_000, retryCount: 0 })),
+    ];
 
     this.client = createPublicClient({
       chain,
       transport: fallback(transports, {
-        rank: true,
+        rank: false,
       }),
     });
   }

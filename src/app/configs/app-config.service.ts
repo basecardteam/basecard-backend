@@ -15,6 +15,7 @@ export class AppConfigService implements OnModuleInit {
       'PINATA_GROUP',
       'BASECARD_CONTRACT_ADDRESS',
       'BASE_WS_RPC_URLS',
+      'BASE_HTTP_RPC_URLS',
       'NEYNAR_API_KEY',
       'JWT_SECRET',
     ];
@@ -71,8 +72,16 @@ export class AppConfigService implements OnModuleInit {
   }
 
   // Blockchain
-  get baseRpcUrls(): string[] {
+  get baseWsRpcUrls(): string[] {
     const urls = this.configService.get<string>('BASE_WS_RPC_URLS', '');
+    return urls
+      .split(',')
+      .map((url) => url.trim())
+      .filter(Boolean);
+  }
+
+  get baseHttpRpcUrls(): string[] {
+    const urls = this.configService.get<string>('BASE_HTTP_RPC_URLS', '');
     return urls
       .split(',')
       .map((url) => url.trim())
