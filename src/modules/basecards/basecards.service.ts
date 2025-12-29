@@ -220,9 +220,15 @@ export class BasecardsService {
 
     // Process Image (Minting)
     this.logger.log('Processing profile image file...');
-    const { imageURI, gatewayUrl } = await this.processMinting(
+    const { imageURI, gatewayUrl } = await this.generateAndUploadImage(
       file,
-      createBasecardDto,
+      createBasecardDto.address,
+      {
+        nickname: createBasecardDto.nickname,
+        role: createBasecardDto.role,
+        bio: createBasecardDto.bio || '',
+      },
+      'mint',
     );
 
     // Simulate Contract Call (Backend Validation)
@@ -290,10 +296,12 @@ export class BasecardsService {
     };
   }
 
-  async processMinting(
+  private async generateAndUploadImage(
     file: Express.Multer.File,
-    dto: CreateBasecardDto,
-  ): Promise<{ imageURI: string; gatewayUrl: string }> {
+    address: string,
+    profileData: { nickname: string; role: string; bio: string },
+    context: 'mint' | 'update' = 'mint',
+  ): Promise<{ imageURI: string; gatewayUrl: string; ipfsId: string }> {
     try {
       // 1. Prepare image for NFT
       const preparedImage = await this.imageService.prepareProfileImage(
@@ -301,12 +309,6 @@ export class BasecardsService {
       );
 
       // 2. Generate NFT PNG
-      const profileData = {
-        nickname: dto.nickname,
-        role: dto.role,
-        bio: dto.bio,
-      };
-
       const nftPngBuffer = await this.imageService.generateNftPng(
         profileData,
         preparedImage.dataUrl,
@@ -315,28 +317,35 @@ export class BasecardsService {
       // 3. Upload NFT PNG to IPFS
       const ipfsResult = await this.ipfsService.uploadFile(
         nftPngBuffer,
-        getBaseCardFilename(dto.address),
+        getBaseCardFilename(address),
         'image/png',
       );
 
-      if (!ipfsResult.success || !ipfsResult.cid) {
+      if (!ipfsResult.success || !ipfsResult.cid || !ipfsResult.id) {
         throw new Error(`IPFS upload failed: ${ipfsResult.error}`);
       }
+
       const nftUri = `ipfs://${ipfsResult.cid}`;
       const gatewayBase = this.configService.get<string>(
         'PINATA_GATEWAY',
         'https://ipfs.io/ipfs',
       );
       const gatewayUrl = `https://${gatewayBase}/ipfs/${ipfsResult.cid}`;
-      this.logger.log(`IPFS Uploaded: ${nftUri}`);
-      this.logger.log(`IPFS Gateway: ${gatewayUrl}`);
+
+      if (context === 'mint') {
+        this.logger.log(`IPFS Uploaded: ${nftUri}`);
+        this.logger.log(`IPFS Gateway: ${gatewayUrl}`);
+      } else {
+        this.logger.log(`IPFS Uploaded (update): ${nftUri}`);
+      }
 
       return {
         imageURI: nftUri,
         gatewayUrl: gatewayUrl,
+        ipfsId: ipfsResult.id,
       };
     } catch (error) {
-      this.logger.error('Generating basecard failed', error);
+      this.logger.error(`Generating basecard failed (${context})`, error);
       throw error;
     }
   }
@@ -508,11 +517,17 @@ export class BasecardsService {
       }
 
       this.logger.log('Card data changed, regenerating NFT image...');
-      const result = await this.processUpdateImage(file, address, {
-        nickname,
-        role,
-        bio,
-      });
+      this.logger.log('Card data changed, regenerating NFT image...');
+      const result = await this.generateAndUploadImage(
+        file,
+        address,
+        {
+          nickname,
+          role,
+          bio,
+        },
+        'update',
+      );
       imageUri = result.imageURI;
 
       // Only set uploadedFiles if it's a NEW image (different from existing)
@@ -565,58 +580,6 @@ export class BasecardsService {
       tokenId,
       uploadedFiles,
     };
-  }
-
-  /**
-   * Process image for update (IPFS upload, no DB update)
-   */
-  private async processUpdateImage(
-    file: Express.Multer.File,
-    address: string,
-    profileData: { nickname: string; role: string; bio: string },
-  ): Promise<{
-    imageURI: string;
-    ipfsId: string;
-  }> {
-    let ipfsId = '';
-    try {
-      // A. Prepare image for NFT
-      const preparedImage = await this.imageService.prepareProfileImage(
-        file.buffer,
-      );
-
-      // B. Generate NFT PNG
-      const nftPngBuffer = await this.imageService.generateNftPng(
-        profileData,
-        preparedImage.dataUrl,
-      );
-
-      // C. Upload NFT PNG to IPFS
-      const ipfsResult = await this.ipfsService.uploadFile(
-        nftPngBuffer,
-        getBaseCardFilename(address),
-        'image/png',
-      );
-
-      if (!ipfsResult.success || !ipfsResult.cid || !ipfsResult.id) {
-        throw new Error(`IPFS upload failed: ${ipfsResult.error}`);
-      }
-      ipfsId = ipfsResult.id;
-      const nftUri = `ipfs://${ipfsResult.cid}`;
-      this.logger.log(`IPFS Uploaded (update): ${nftUri}`);
-
-      return {
-        imageURI: nftUri,
-        ipfsId,
-      };
-    } catch (error) {
-      this.logger.error('Processing update image failed', error);
-      // Cleanup on failure
-      if (ipfsId) {
-        await this.ipfsService.deleteFile(ipfsId).catch(() => {});
-      }
-      throw error;
-    }
   }
 
   /**
