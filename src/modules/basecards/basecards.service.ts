@@ -60,9 +60,115 @@ export class BasecardsService {
     // Check if user has already minted (Contract check)
     const hasMinted = await this.checkHasMinted(createBasecardDto.address);
     if (hasMinted) {
-      throw new Error(
-        'You have already minted a BaseCard. Each address can only mint once.',
+      // Sync existing on-chain card to DB
+      const tokenId = await this.evmLib.getTokenId(createBasecardDto.address);
+      if (!tokenId) {
+        throw new Error(
+          'BaseCard exists on-chain but failed to fetch Token ID.',
+        );
+      }
+
+      this.logger.log(
+        `Syncing existing BaseCard from chain: Address ${createBasecardDto.address}, TokenId ${tokenId}`,
       );
+
+      // Fetch on-chain data
+      const cardData = await this.evmLib.getCardData(tokenId);
+      if (!cardData) {
+        throw new Error('Failed to fetch BaseCard metadata from on-chain URI.');
+      }
+
+      // Find user (Reuse user finding logic helper or duplicate for now due to flow)
+      let user;
+      const address = createBasecardDto.address.toLowerCase();
+
+      // 1. Try finding by userId first
+      if (options.userId) {
+        user = await this.db.query.users.findFirst({
+          where: eq(schema.users.id, options.userId),
+        });
+      }
+
+      if (!user) {
+        throw new Error('User not found to sync existing card.');
+      }
+
+      // Transform socials array to object
+      const socialsMap: Record<string, string> = {};
+      if (cardData.socials && Array.isArray(cardData.socials)) {
+        cardData.socials.forEach((item) => {
+          if (item.key && item.value) {
+            socialsMap[item.key] = item.value;
+          }
+        });
+      }
+
+      // Insert into DB
+      const card = await this.db.transaction(async (tx) => {
+        // Ensure no duplicate exists
+        const existing = await tx.query.basecards.findFirst({
+          where: eq(schema.basecards.userId, user!.id),
+        });
+
+        if (existing) {
+          // If exists (weird state), update it
+          const [updated] = await tx
+            .update(schema.basecards)
+            .set({
+              tokenOwner: address,
+              tokenId: tokenId,
+              nickname: cardData.nickname,
+              role: cardData.role,
+              bio: cardData.bio,
+              imageUri: cardData.imageUri,
+              socials: socialsMap,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.basecards.id, existing.id))
+            .returning();
+          return updated;
+        }
+
+        const [newCard] = await tx
+          .insert(schema.basecards)
+          .values({
+            userId: user!.id,
+            tokenOwner: address,
+            tokenId: tokenId,
+            nickname: cardData.nickname,
+            role: cardData.role,
+            bio: cardData.bio,
+            imageUri: cardData.imageUri,
+            socials: socialsMap,
+            txHash: '0x000', // dummy tx for syncing
+            // TX Hash and Timestamp might be missing, that's fine for sync
+          })
+          .returning();
+
+        // Update user stats
+        await tx
+          .update(schema.users)
+          .set({ hasMintedCard: true, isNewUser: false })
+          .where(eq(schema.users.id, user!.id));
+
+        return newCard;
+      });
+
+      this.logger.log(`Synced existing card to DB: ${card.id}`);
+
+      return {
+        card_data: {
+          nickname: card.nickname || '',
+          role: card.role || '',
+          bio: card.bio || '',
+          imageUri: card.imageUri || '',
+        },
+        social_keys: Object.keys(socialsMap),
+        social_values: Object.values(socialsMap),
+        initial_delegates: [], // Cannot retrieve delegates easily without events, ignore for sync
+        gatewayUrl:
+          card.imageUri?.replace('ipfs://', 'https://ipfs.io/ipfs/') || '',
+      };
     }
 
     let user;

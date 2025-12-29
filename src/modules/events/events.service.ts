@@ -308,36 +308,35 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     event: typeof schema.contractEvents.$inferSelect,
   ) {
     const args = event.args as {
-      tokenOwnerAddress: string;
+      user: string;
       tokenId: number | string;
     };
 
-    if (!args.tokenOwnerAddress || args.tokenId === undefined) {
+    if (!args.user || args.tokenId === undefined) {
       throw new Error('Invalid args for MintBaseCard');
     }
 
+    const tokenOwnerAddress = args.user.toLowerCase();
+
     const tokenId = Number(args.tokenId);
     this.logger.log(
-      `Processing MintBaseCard: User ${args.tokenOwnerAddress}, TokenId ${tokenId}`,
+      `Processing MintBaseCard: User ${tokenOwnerAddress}, TokenId ${tokenId}`,
     );
 
     // Update BaseCard with Token ID (This also updates hasMintedCard)
     await this.basecardsService.updateTokenId(
-      args.tokenOwnerAddress,
+      tokenOwnerAddress,
       tokenId,
       event.transactionHash,
     );
 
     // Mark MINT quest as claimable
     try {
-      const user = await this.db.query.users.findFirst({
-        where: eq(
-          schema.users.walletAddress,
-          args.tokenOwnerAddress.toLowerCase(),
-        ),
+      const basecard = await this.db.query.basecards.findFirst({
+        where: eq(schema.basecards.tokenOwner, tokenOwnerAddress),
       });
 
-      if (user) {
+      if (basecard?.userId) {
         const mintQuest = await this.db.query.quests.findFirst({
           where: eq(schema.quests.actionType, 'MINT'),
         });
@@ -348,18 +347,18 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
             .set({ status: 'claimable' })
             .where(
               and(
-                eq(schema.userQuests.userId, user.id),
+                eq(schema.userQuests.userId, basecard.userId),
                 eq(schema.userQuests.questId, mintQuest.id),
               ),
             );
           this.logger.log(
-            `MINT quest marked as claimable for user ${args.tokenOwnerAddress}`,
+            `MINT quest marked as claimable for user ${tokenOwnerAddress}`,
           );
         }
       }
     } catch (error) {
       this.logger.error(
-        `Failed to update quest status for user ${args.tokenOwnerAddress}`,
+        `Failed to update quest status for user ${tokenOwnerAddress}`,
         error,
       );
     }
