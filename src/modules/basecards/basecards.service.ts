@@ -541,12 +541,12 @@ export class BasecardsService {
   }
 
   async updateTokenId(
-    address: string,
+    tokenOwnerAddress: string,
     tokenId: number | null,
     txHash?: string,
   ) {
-    const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.walletAddress, address.toLowerCase()),
+    let user = await this.db.query.users.findFirst({
+      where: eq(schema.users.walletAddress, tokenOwnerAddress.toLowerCase()),
     });
 
     if (!user) {

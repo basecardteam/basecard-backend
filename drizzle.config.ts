@@ -1,4 +1,5 @@
 import { defineConfig } from 'drizzle-kit';
+// dotenv loaded via script
 
 export default defineConfig({
   schema: './src/db/schema.ts',

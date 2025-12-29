@@ -1,7 +1,7 @@
 import { Client } from 'pg';
 import * as dotenv from 'dotenv';
 
-dotenv.config();
+// dotenv loaded via script
 
 async function reset() {
   const client = new Client({

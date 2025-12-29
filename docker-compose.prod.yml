@@ -12,7 +12,7 @@ services:
     ports:
       - "${PORT:-4000}:${PORT:-4000}"
     env_file:
-      - .env
+      - .env.prod
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-4000}
