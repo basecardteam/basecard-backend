@@ -51,7 +51,6 @@ export class BasecardsController {
   }
 
   @Get('me')
-  @Get('me')
   async findMyCard(@Request() req) {
     const userId = req.user?.userId;
     const walletAddress = req.user?.loginAddress;

@@ -18,6 +18,7 @@ import { IpfsModule } from '../modules/ipfs/ipfs.module';
 import { BlockchainModule } from '../modules/blockchain/blockchain.module';
 import { QuestVerificationModule } from '../modules/quest-verification/quest-verification.module';
 import { WebhookModule } from '../modules/webhook/webhook.module';
+import { OAuthModule } from '../modules/oauth/oauth.module';
 // middleware
 import { LoggingMiddleware } from './middleware/logging.middleware';
 
@@ -42,6 +43,7 @@ import { LoggingMiddleware } from './middleware/logging.middleware';
     QuestVerificationModule,
     WebhookModule,
     AuthModule,
+    OAuthModule,
   ],
 })
 export class AppModule implements NestModule {

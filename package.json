@@ -41,6 +41,10 @@
     "test:auth-flow-admin": "node -r ts-node/register scripts/test-auth-flow-admin.ts",
     "add-admin-address": "node -r ts-node/register scripts/add-admin.ts",
     "test:neynar": "node -r ts-node/register scripts/test-neynar-api.ts",
+    "db:prod:migrate-socials": "dotenv -e .env.prod -- node -r ts-node/register scripts/migrate-socials.ts",
+    "db:prod:verify-socials:onchain": "dotenv -e .env.prod -- node -r ts-node/register scripts/verify-socials-onchain.ts",
+    "db:prod:sync-socials:from-chain": "dotenv -e .env.prod -- node -r ts-node/register scripts/sync-socials-from-chain.ts",
+    "db:prod:dump": "dotenv -e .env.prod -- node -r ts-node/register scripts/dump-db.ts",
     "docker:test": "./scripts/docker-local-test.sh",
     "docker:local": "docker compose -f docker-compose.local.yml up -d --build"
   },

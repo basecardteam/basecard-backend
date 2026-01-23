@@ -436,12 +436,13 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      // 4. Convert socials array to object
-      const socialsObj: Record<string, string> = {};
+      // 4. Convert socials array to object { handle, verified: true }
+      const socialsObj: Record<string, { handle: string; verified: boolean }> =
+        {};
       if (onchainData.socials && Array.isArray(onchainData.socials)) {
         for (const social of onchainData.socials) {
           if (social.key && social.value) {
-            socialsObj[social.key] = social.value;
+            socialsObj[social.key] = { handle: social.value, verified: true };
           }
         }
       }

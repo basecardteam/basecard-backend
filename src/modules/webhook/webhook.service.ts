@@ -62,7 +62,7 @@ export class WebhookService {
 
   private getClientName(appFid?: number): string {
     if (appFid === CLIENT_FIDS.BASEAPP) return 'Base App';
-    if (appFid === CLIENT_FIDS.WARPCAST) return 'Warpcast';
+    if (appFid === CLIENT_FIDS.FARCASTER) return 'Farcaster';
     return `Client(${appFid ?? 'unknown'})`;
   }
 
