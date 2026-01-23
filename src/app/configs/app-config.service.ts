@@ -18,6 +18,12 @@ export class AppConfigService implements OnModuleInit {
       'BASE_HTTP_RPC_URLS',
       'NEYNAR_API_KEY',
       'JWT_SECRET',
+      'GITHUB_CLIENT_ID',
+      'GITHUB_CLIENT_SECRET',
+      'X_CLIENT_ID',
+      'X_CLIENT_SECRET',
+      'LINKEDIN_CLIENT_ID',
+      'LINKEDIN_CLIENT_SECRET',
     ];
 
     const missingKeys = requiredKeys.filter(
@@ -118,5 +124,29 @@ export class AppConfigService implements OnModuleInit {
       .split(',')
       .map((addr) => addr.trim().toLowerCase())
       .filter(Boolean);
+  }
+
+  get githubClientId(): string {
+    return this.configService.get<string>('GITHUB_CLIENT_ID')!;
+  }
+
+  get githubClientSecret(): string {
+    return this.configService.get<string>('GITHUB_CLIENT_SECRET')!;
+  }
+
+  get linkedinClientId(): string {
+    return this.configService.get<string>('LINKEDIN_CLIENT_ID')!;
+  }
+
+  get linkedinClientSecret(): string {
+    return this.configService.get<string>('LINKEDIN_CLIENT_SECRET')!;
+  }
+
+  get xClientId(): string {
+    return this.configService.get<string>('X_CLIENT_ID')!;
+  }
+
+  get xClientSecret(): string {
+    return this.configService.get<string>('X_CLIENT_SECRET')!;
   }
 }

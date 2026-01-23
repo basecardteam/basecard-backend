@@ -4,7 +4,7 @@
  */
 export const CLIENT_FIDS = {
   METAMASK: 0,
-  WARPCAST: 9152,
+  FARCASTER: 9152,
   BASEAPP: 309857,
 } as const;
 
@@ -21,6 +21,8 @@ export function getClientTypeFromFid(
       return 'metamask';
     case CLIENT_FIDS.BASEAPP:
       return 'baseapp';
+    case CLIENT_FIDS.FARCASTER:
+      return 'farcaster';
     default:
       return 'farcaster'; // warpcast and other farcaster clients
   }

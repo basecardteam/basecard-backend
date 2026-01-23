@@ -484,19 +484,10 @@ export class BasecardsService {
     const nickname = updateData.nickname ?? '';
     const role = updateData.role ?? '';
     const bio = updateData.bio ?? '';
-    const rawSocials = updateData.socials ? { ...updateData.socials } : {};
-    const socials = this.sanitizeSocials(rawSocials);
 
-    // 3. Handle removal: if a handle was in DB but not in update request, add it as empty string
-    // This ensures it is properly cleared on-chain during editBaseCard call
-    if (existingCard.socials) {
-      const existingKeys = Object.keys(existingCard.socials);
-      for (const key of existingKeys) {
-        if (socials[key] === undefined) {
-          socials[key] = '';
-        }
-      }
-    }
+    // Simplification: Trust frontend payload
+    const rawSocials = updateData.socials ? { ...updateData.socials } : {};
+    const socials = this.sanitizeSocials(rawSocials as any);
 
     // 4. Check if card data changed (nickname, role, bio, or profile image)
     const cardDataChanged =
@@ -546,7 +537,10 @@ export class BasecardsService {
 
     // 4. Simulate Contract Call (Backend Validation)
     const socialKeys = Object.keys(socials);
-    const socialValues = Object.values(socials) as string[];
+    // CRITICAL: Extract handle if value is an object { handle, verified }
+    const socialValues = Object.values(socials).map((s: any) =>
+      typeof s === 'object' && s !== null ? s.handle : s,
+    ) as string[];
 
     const tokenId = await this.evmLib.getTokenId(address);
     if (!tokenId) {
@@ -722,33 +716,41 @@ export class BasecardsService {
   /**
    * Helper to sanitize social URLs (e.g. remove query params from LinkedIn)
    */
-  private sanitizeSocials(
-    socials: Record<string, string>,
-  ): Record<string, string> {
-    const sanitized: Record<string, string> = {};
+  private sanitizeSocials(socials: Record<string, any>): Record<string, any> {
+    const sanitized: Record<string, any> = {};
     for (const [key, value] of Object.entries(socials)) {
-      if (!value) continue;
+      // Handle structure { handle, verified } OR string
+      let handle = '';
+      let verified = false;
+
+      if (typeof value === 'object' && value !== null) {
+        handle = (value as any).handle || '';
+        verified = (value as any).verified || false;
+      } else {
+        handle = value as string;
+      }
+
+      if (!handle) continue;
 
       if (key === 'linkedin') {
         try {
           // Check if it looks like a URL
-          if (value.startsWith('http://') || value.startsWith('https://')) {
-            const url = new URL(value);
+          if (handle.startsWith('http://') || handle.startsWith('https://')) {
+            const url = new URL(handle);
             // Remove search params
             url.search = '';
-            sanitized[key] = url.toString();
-          } else {
-            // It's likely a handle, keep as is
-            sanitized[key] = value;
+            handle = url.toString();
           }
         } catch (e) {
-          // Fallback: if URL parsing fails, just keep original
-          sanitized[key] = value;
+          // Fallback: keep original handle
         }
-      } else {
-        // For other keys, keep as is
-        sanitized[key] = value;
       }
+
+      // Store back in the same format
+      sanitized[key] =
+        typeof value === 'object' && value !== null
+          ? { handle, verified }
+          : handle;
     }
     return sanitized;
   }
