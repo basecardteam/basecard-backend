@@ -477,7 +477,55 @@ export class BasecardsService {
     // 1. Find existing card
     const existingCard = await this.findByAddress(address);
     if (!existingCard) {
-      throw new Error('Card not found for address');
+      // Card not found by direct address lookup
+      // Try to find via user_wallets table (user might be using a different wallet)
+      this.logger.debug(
+        `Card not found for address ${address}, checking user_wallets...`,
+      );
+
+      // Step 1: Find userId from user_wallets
+      const userWallet = await this.db.query.userWallets.findFirst({
+        where: eq(schema.userWallets.walletAddress, address.toLowerCase()),
+      });
+
+      if (!userWallet) {
+        // User wallet not registered at all
+        throw new Error('Card not found for address');
+      }
+
+      // Step 2: Find card by userId
+      const cardByUserId = await this.db.query.basecards.findFirst({
+        where: eq(schema.basecards.userId, userWallet.userId),
+      });
+
+      if (!cardByUserId) {
+        // User has wallet registered but no card minted
+        throw new Error('Card not found for address');
+      }
+
+      // Step 3: Card exists but owned by different wallet
+      // Find the wallet that owns the card
+      const ownerWallet = await this.db.query.userWallets.findFirst({
+        where: eq(
+          schema.userWallets.walletAddress,
+          cardByUserId.tokenOwner.toLowerCase(),
+        ),
+      });
+
+      const requiredClientType = ownerWallet?.clientType || 'unknown';
+
+      this.logger.warn(
+        `Card found but owned by different wallet. Current: ${address}, Owner: ${cardByUserId.tokenOwner}, Required client: ${requiredClientType}`,
+      );
+
+      // Throw error with structured data for frontend
+      const error: any = new Error('WRONG_WALLET');
+      error.data = {
+        currentAddress: address.toLowerCase(),
+        cardOwnerAddress: cardByUserId.tokenOwner.toLowerCase(),
+        requiredClientType,
+      };
+      throw error;
     }
 
     // 2. Use values directly from frontend (empty string = delete the field)

@@ -212,6 +212,25 @@ export class BasecardsController {
       };
     } catch (error) {
       this.logger.error('Failed to process update', error);
+
+      // Check if this is a WRONG_WALLET error
+      if (error.message === 'WRONG_WALLET' && error.data) {
+        const clientTypeDisplay: Record<string, string> = {
+          farcaster: 'Farcaster',
+          baseapp: 'BaseApp',
+          metamask: 'MetaMask',
+        };
+        const clientName =
+          clientTypeDisplay[error.data.requiredClientType] || 'the correct app';
+
+        throw new BadRequestException({
+          success: false,
+          error: 'WRONG_WALLET',
+          message: `This card is owned by a different wallet. Please switch to ${clientName} to edit your profile.`,
+          data: error.data,
+        });
+      }
+
       throw new InternalServerErrorException(
         error.message || 'Internal Server Error',
       );
