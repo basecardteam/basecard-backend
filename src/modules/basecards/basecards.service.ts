@@ -261,6 +261,40 @@ export class BasecardsService {
     }
 
     const card = await this.db.transaction(async (tx) => {
+      // Check if a draft card already exists (e.g., from OAuth before minting)
+      const existingDraftCard = await tx.query.basecards.findFirst({
+        where: eq(schema.basecards.userId, user.id),
+      });
+
+      if (existingDraftCard && existingDraftCard.tokenId === null) {
+        // Update the existing draft card with mint data
+        // Merge existing OAuth socials with new socials from mint form
+        const mergedSocials = {
+          ...((existingDraftCard.socials as Record<string, unknown>) || {}),
+          ...sanitizedSocials,
+        };
+
+        const [updatedCard] = await tx
+          .update(schema.basecards)
+          .set({
+            tokenOwner: createBasecardDto.address.toLowerCase(),
+            nickname: createBasecardDto.nickname,
+            role: createBasecardDto.role,
+            bio: createBasecardDto.bio,
+            imageUri: imageURI,
+            socials: mergedSocials,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.basecards.id, existingDraftCard.id))
+          .returning();
+
+        this.logger.log(
+          `Updated draft card ${updatedCard.id} with mint data (merged OAuth socials)`,
+        );
+        return updatedCard;
+      }
+
+      // No draft card exists, create a new one
       const [newCard] = await tx
         .insert(schema.basecards)
         .values({

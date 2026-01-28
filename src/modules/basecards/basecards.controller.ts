@@ -62,10 +62,25 @@ export class BasecardsController {
     const card = await this.basecardsService.findByUserId(userId);
 
     // Cleanup incomplete card if exists (tokenId null but no onchain mint)
+    // BUT preserve draft cards that have OAuth socials stored
     if (card && card.tokenId === null && walletAddress) {
       const hasMinted =
         await this.basecardsService.checkHasMinted(walletAddress);
       if (!hasMinted) {
+        // Check if the card has OAuth socials stored - if so, keep it
+        const hasOAuthSocials =
+          card.socials &&
+          typeof card.socials === 'object' &&
+          Object.keys(card.socials).length > 0;
+
+        if (hasOAuthSocials) {
+          this.logger.log(
+            `Keeping draft card for user ${userId} - has OAuth socials stored`,
+          );
+          return card; // Return the draft card with OAuth socials
+        }
+
+        // No OAuth socials - safe to clean up incomplete card
         this.logger.log(`Cleaning up incomplete card for user ${userId}`);
         await this.basecardsService.remove(card.id);
         return null; // Card was incomplete, return null
@@ -113,12 +128,13 @@ export class BasecardsController {
     this.logger.log(`Creating card for address: ${createBasecardDto.address}`);
 
     // Check if card exists to avoid unnecessary image processing
+    // Only skip for fully minted cards (has tokenId), NOT for draft cards
     const existingCard = await this.basecardsService.findByAddress(
       createBasecardDto.address,
     );
-    if (existingCard) {
+    if (existingCard && existingCard.tokenId !== null) {
       this.logger.log(
-        `Card already exists for address: ${createBasecardDto.address}`,
+        `Minted card already exists for address: ${createBasecardDto.address}`,
       );
       const socialKeys = existingCard.socials
         ? Object.keys(existingCard.socials)
@@ -137,6 +153,7 @@ export class BasecardsController {
         social_values: socialValues,
       };
     }
+    // Draft cards (tokenId === null) proceed to service.create() which handles merging
 
     try {
       // If file is provided, process it via BasecardsService

@@ -545,12 +545,49 @@ export class OAuthService {
     provider: OAuthProvider,
     handle: string,
   ): Promise<void> {
-    const card = await this.db.query.basecards.findFirst({
+    let card = await this.db.query.basecards.findFirst({
       where: eq(schema.basecards.userId, userId),
     });
 
+    // If no card exists, create a draft basecard to store OAuth socials
+    // This allows new users to connect OAuth before minting
     if (!card) {
-      this.logger.warn(`No card found for userId: ${userId}`);
+      this.logger.log(
+        `No card found for userId: ${userId}. Creating draft basecard for OAuth socials.`,
+      );
+
+      // Get user's wallet address for tokenOwner
+      const user = await this.db.query.users.findFirst({
+        where: eq(schema.users.id, userId),
+      });
+
+      if (!user) {
+        this.logger.error(`User not found for userId: ${userId}`);
+        return;
+      }
+
+      // Create draft basecard with just userId, tokenOwner, and socials
+      // tokenId will be null until actual minting happens
+      const socials: Socials = {
+        [provider]: {
+          handle,
+          verified: true,
+        },
+      };
+
+      const [newCard] = await this.db
+        .insert(schema.basecards)
+        .values({
+          userId,
+          tokenOwner: user.walletAddress,
+          socials,
+          // tokenId remains null - this is a draft card
+        })
+        .returning();
+
+      this.logger.log(
+        `Created draft basecard ${newCard.id} for userId ${userId} with ${provider}: ${handle}`,
+      );
       return;
     }
 
