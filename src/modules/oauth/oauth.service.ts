@@ -157,6 +157,11 @@ export class OAuthService {
       throw new Error('OAuth state expired');
     }
 
+    // Validate clientFid is a valid number
+    if (!stateData.clientFid || isNaN(stateData.clientFid)) {
+      throw new Error('Invalid clientFid - OAuth cannot build deeplink');
+    }
+
     const config = this.getProviderConfig(provider);
     const redirectUri = this.getRedirectUri(provider);
 
@@ -179,7 +184,7 @@ export class OAuthService {
 
     // Build redirect URL back to MiniApp based on clientFid
     const redirectUrl = this.buildDeeplinkUrl(
-      stateData.clientFid,
+      stateData.clientFid as number, // validated above
       stateData.returnUrl || '/edit-profile',
       provider,
       userInfo.handle,
@@ -195,13 +200,13 @@ export class OAuthService {
    * - Warpcast (default): uses warpcast:// or fallback
    */
   private buildDeeplinkUrl(
-    clientFid: number | undefined,
+    clientFid: number,
     returnPath: string,
     provider: OAuthProvider,
     handle: string,
   ): string {
     const queryParams = `?oauth_success=${provider}&handle=${encodeURIComponent(handle)}`;
-    const clientType = getClientTypeFromFid(clientFid ?? 0);
+    const clientType = getClientTypeFromFid(clientFid);
 
     switch (clientType) {
       case 'farcaster': {
