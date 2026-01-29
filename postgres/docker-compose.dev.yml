@@ -1,25 +1,25 @@
+# Dev Database Container (separate from production)
+# Usage: docker compose -f docker-compose.dev.yml up -d
+
 services:
-  postgres:
+  postgres-dev:
     image: postgres:16-alpine
-    container_name: ${CONTAINER_NAME:-postgres}
+    container_name: postgres-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-basecard}
-      # Service users (used by init_db/01_init.sh)
+      POSTGRES_DB: ${DEV_DB_NAME:-basecard_dev}
+      # Service users
       BACKEND_USER: ${BACKEND_USER:-basecard_user}
       BACKEND_PASSWORD: ${BACKEND_PASSWORD:-basecard_password}
       AI_AGENT_USER: ${AI_AGENT_USER:-ai_agent_user}
       AI_AGENT_PASSWORD: ${AI_AGENT_PASSWORD:-ai_agent_password}
-      # Dev database (used by init_db/02_init_dev.sh)
-      ENABLE_DEV_DB: ${ENABLE_DEV_DB:-false}
-      DEV_DB_NAME: ${DEV_DB_NAME:-basecard_dev}
     volumes:
-      - ${POSTGRES_DATA_DIR:?}/postgres:/var/lib/postgresql/data
-      - ./init_db:/docker-entrypoint-initdb.d:ro
+      - ${POSTGRES_DATA_DIR:?}/postgres-dev:/var/lib/postgresql/data
+      - ./init_db/01_init.sh:/docker-entrypoint-initdb.d/01_init.sh:ro
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin}"]
       interval: 10s
